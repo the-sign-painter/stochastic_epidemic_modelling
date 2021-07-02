@@ -1,4 +1,10 @@
 #! /bin/bash
 
-gcc ./main.c -lm
-./a.out
+CFLAGS="-pedantic -Wall -Werror"
+CLIBS="-lm -lgmp"
+SRCDIR="src"
+OUTDIR="output"
+
+r=`gcc ${CLIBS} ${SRCDIR}/main.c ${CLIBS} -o ${OUTDIR}/main`
+echo $r
+#./${OUTDIR}/main
