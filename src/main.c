@@ -13,40 +13,59 @@ void factorial(uint8_t x, mpz_t x_fact)
     }
 }
 
-float binomial_distribution(int n, float p, int k)
+double binomial_distribution(int n, float p, int k)
 {
-    mpf_t sum_prob_k;
-    mpf_init(sum_prob_k);
-    mpf_set_ui(sum_prob_k, 0);
-    for (int k = 0 ; k <= n ; k++)
-    {
-        mpz_t fact_n;
-        mpz_init(fact_n);
-        factorial(n, fact_n);
+    float q = 1.0 - p;
+    double prob_k;
 
-        mpz_t fact_k;
-        mpz_init(fact_k);
-        factorial(k, fact_k);
+    // Get n! k! and (n-k)!
+    mpz_t fact_n;
+    mpz_init(fact_n);
+    factorial(n, fact_n);
 
-        mpz_t fact_nk;
-        mpz_init(fact_nk);
-        factorial(n-k, fact_nk);
+    mpz_t fact_k;
+    mpz_init(fact_k);
+    factorial(k, fact_k);
 
-        mpz_t frac;
-        mpz_init(frac);
-        mpz_mul(frac, fact_k, fact_nk);
-        mpz_cdiv_q(frac, fact_n, frac);
-        
-        mpf_t frac_f;
-        mpf_init(frac_f);
-        mpf_set_z(frac_f, frac);
-        mpf_t prob_k_m;
-        mpf_init(prob_k_m);
-        mpf_mul_ui(prob_k_m, frac_f, pow(p, k));
-        mpf_mul_ui(prob_k_m, prob_k_m, pow((1 - p), (n - k)));
-        mpf_add(sum_prob_k, sum_prob_k, prob_k_m);
-    }
-    double prob_k = mpf_get_d(sum_prob_k);
+    mpz_t fact_nk;
+    mpz_init(fact_nk);
+    factorial(n-k, fact_nk);
+
+    // Multiply and divide
+    //      n!
+    // -----------
+    // k! (n - k)!
+    mpz_t frac;
+    mpz_init(frac);
+    mpz_mul(frac, fact_k, fact_nk);
+    mpz_cdiv_q(frac, fact_n, frac); // This is a ceiling divide for the quotient
+
+    // Free memory of large, unused integers
+    mpz_clear(fact_n);
+    mpz_clear(fact_k);
+    mpz_clear(fact_nk);
+    
+    // Convert the fraction of factorials to a precise float
+    mpf_t frac_f;
+    mpf_init(frac_f);
+    mpf_set_z(frac_f, frac);
+
+    // Free memory of fraction of factorials as precise integer
+    mpz_clear(frac);
+
+    // Multiply by p^k and q^(n-k)
+    mpf_t prob_k_f;
+    mpf_init(prob_k_f);
+    mpf_mul_ui(prob_k_f, frac_f, pow(p, k));
+    mpf_mul_ui(prob_k_f, prob_k_f, pow(q, (n - k)));
+
+    // Convert from precise float to C float
+    prob_k = mpf_get_d(prob_k_f);
+
+    // Free memory of precise floats
+    mpf_clear(frac_f);
+    mpf_clear(prob_k_f);
+
     return prob_k;
 }
 
@@ -54,7 +73,8 @@ int main(void)
 {
     int n = 49;
     int p = 0.6;
-    float bin_dist = binomial_distribution(n, p);
+    int k = 30;
+    float bin_dist = binomial_distribution(n, p, k);
     printf("%f\n", bin_dist);
 
     /*
