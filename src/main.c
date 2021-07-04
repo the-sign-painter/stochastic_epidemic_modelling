@@ -145,7 +145,7 @@ uint16_t random_binomial_integer(int n, double p)
 
 int* simulate(int iterations, int n, float p)
 {
-    int* bins = (int*)malloc((n + 1) * sizeof(uint16_t));
+    int* bins = (int*)malloc((n + 1) * sizeof(int));
     for (int b = 0; b <= n; b++)
     {
         bins[b] = 0;
@@ -166,15 +166,18 @@ int main(void)
     
     int n = 49;
     double p = 0.6;
-    int iterations = 10;
+    int iterations = 1000;
     int* bins;
     
     bins = simulate(iterations, n, p);
     
-    for (int i = 0; i < n; i++)
+    int sum = 0;
+    for (int i = 0; i <= n; i++)
     {
         printf("%u: %u\n", i, bins[i]);
+        sum += bins[i];
     }
+    printf("sum = %u\n", sum);
 
     free(bins);
 
