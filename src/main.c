@@ -6,6 +6,9 @@
 #include <time.h>
 
 
+typedef uint16_t bin_t;
+typedef mpf_t prob_t;
+
 void factorial(uint8_t x, mpz_t x_fact)
 {
     mpz_set_ui(x_fact, 1);
@@ -17,8 +20,6 @@ void factorial(uint8_t x, mpz_t x_fact)
 
 void binomial_distribution(mpf_t probability, int n, float p, int k)
 {
-    double total;
-
     int scale = 1000000000;
     int scaled_p = p * scale;
     mpf_t p_f;
@@ -85,26 +86,33 @@ void binomial_distribution(mpf_t probability, int n, float p, int k)
     mpf_clear(q_part_f);
 }
 
-void cumulative_binomial_distribution(mpf_t cumulative_probability, int n, double p, int k)
+float* cumulative_binomial_distribution(int n, double p)
 {
+    prob_t* cum_prob_arr = (prob_t*)malloc((n + 2) * sizeof(prob_t));
+    float* float_arr = (float*)malloc((n + 2) * sizeof(float));
+
     mpf_t probability;
     mpf_init(probability);
-    mpf_set_ui(cumulative_probability, 0);
+    mpf_init(cum_prob_arr[0]);
+    mpf_set_ui(cum_prob_arr[0], 0);
 
-    for (int i = 0; i <= k; i++)
+    for (int k = 0; k <= n; k++)
     {
-        binomial_distribution(probability, n, p, i);
-        mpf_add(cumulative_probability, cumulative_probability, probability);
+        binomial_distribution(probability, n, p, k);
+        mpf_init(cum_prob_arr[k + 1]);
+        mpf_add(cum_prob_arr[k + 1], cum_prob_arr[k], probability);
+        float_arr[k + 1] = mpf_get_d(cum_prob_arr[k]) + mpf_get_d(probability);
     }
+
     mpf_clear(probability);
+    free(cum_prob_arr);
+
+    return float_arr;
 }
 
 void cumulative_uniform_random_float(mpf_t cumulative_probabilty, int n)
 {
-    double random_float;
-    time_t t;
-    srand((unsigned) time(&t));
-    uint16_t rand_num = rand() % (n + 1);
+    uint16_t rand_num = rand() % n + 1;
 
     mpf_set_d(cumulative_probabilty, n);
     mpf_ui_div(cumulative_probabilty, 1, cumulative_probabilty);
@@ -117,35 +125,26 @@ uint16_t random_binomial_integer(int n, double p)
     mpf_init(cum_uni_prob);
     cumulative_uniform_random_float(cum_uni_prob, n);
 
-    mpf_t bin_prob;
-    mpf_init(bin_prob);
+    float* cum_prob_arr = cumulative_binomial_distribution(n, p);
 
-    mpf_t cum_bin_prob;
-    mpf_init(cum_bin_prob);
-
-    mpf_t uni_step_size;
-    mpf_init(uni_step_size);
-    mpf_set_ui(uni_step_size, 1);
-    mpf_ui_div(uni_step_size, 1, uni_step_size);
-
-    uint16_t k = 0;
-    while (mpf_cmp(cum_uni_prob, cum_bin_prob) > 0)
+    float t = mpf_get_d(cum_uni_prob);
+    printf("Uni:\n%f\n", t);
+    int k = 0;
+    for (int i = 0; mpf_cmp_d(cum_uni_prob, cum_prob_arr[i]) > 0; i++)
     {
-        binomial_distribution(bin_prob, n, p, k);
-        mpf_add(cum_bin_prob, cum_bin_prob, bin_prob);
-        k = k + 1;
+        k = i+1;
     }
-    k = k - 1;
-
-    mpf_clear(bin_prob);
+    printf("%d\n", k);
     mpf_clear(cum_uni_prob);
-    mpf_clear(cum_bin_prob);
+    free(cum_prob_arr);
     return k;
 }
 
-int* simulate(int iterations, int n, float p)
+bin_t* simulate(int iterations, int n, float p)
 {
-    int* bins = (int*)malloc((n + 1) * sizeof(int));
+    time_t t;
+    srand((unsigned) time(&t));
+    bin_t* bins = (bin_t*)malloc((n + 1) * sizeof(bin_t));
     for (int b = 0; b <= n; b++)
     {
         bins[b] = 0;
@@ -163,24 +162,25 @@ int* simulate(int iterations, int n, float p)
 int main(void)
 {
     clock_t begin = clock();
-    
+
     int n = 49;
     double p = 0.6;
     int iterations = 1000;
-    int* bins;
     
+    bin_t* bins;
+
     bins = simulate(iterations, n, p);
-    
+
     int sum = 0;
     for (int i = 0; i <= n; i++)
     {
-        printf("%u: %u\n", i, bins[i]);
+        printf("%02u: %u\n", i, bins[i]);
         sum += bins[i];
     }
     printf("sum = %u\n", sum);
 
     free(bins);
-
+    
     clock_t end = clock();
     double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
     printf("In %f seconds\n", time_spent);
