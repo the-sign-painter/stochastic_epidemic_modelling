@@ -18,7 +18,7 @@ void factorial(uint8_t x, mpz_t x_fact)
     }
 }
 
-void binomial_distribution(mpf_t probability, int n, float p, int k)
+void binomial_distribution(mpf_t probability, int n, mpf_t p, int k)
 {
     int scale = 1000000000;
     int scaled_p = p * scale;
@@ -86,7 +86,7 @@ void binomial_distribution(mpf_t probability, int n, float p, int k)
     mpf_clear(q_part_f);
 }
 
-float* cumulative_binomial_distribution(int n, double p)
+float* cumulative_binomial_distribution(int n, mpf_t p)
 {
     prob_t* cum_prob_arr = (prob_t*)malloc((n + 2) * sizeof(prob_t));
     float* float_arr = (float*)malloc((n + 2) * sizeof(float));
@@ -119,16 +119,12 @@ void cumulative_uniform_random_float(mpf_t cumulative_probabilty, int n)
     mpf_mul_ui(cumulative_probabilty, cumulative_probabilty, rand_num);
 }
 
-uint16_t random_binomial_integer(int n, double p)
+uint16_t random_binomial_integer(int n, float* cum_prob_arr)
 {
     mpf_t cum_uni_prob;
     mpf_init(cum_uni_prob);
     cumulative_uniform_random_float(cum_uni_prob, n);
 
-    float* cum_prob_arr = cumulative_binomial_distribution(n, p);
-
-    float t = mpf_get_d(cum_uni_prob);
-    printf("Uni:\n%f\n", t);
     int k = 0;
     for (int i = 0; mpf_cmp_d(cum_uni_prob, cum_prob_arr[i]) > 0; i++)
     {
@@ -136,51 +132,60 @@ uint16_t random_binomial_integer(int n, double p)
     }
     printf("%d\n", k);
     mpf_clear(cum_uni_prob);
-    free(cum_prob_arr);
     return k;
 }
 
-bin_t* simulate(int iterations, int n, float p)
+bin_t* simulate_random_binomial_integer(int iterations, int n, mpf_t p)
 {
-    time_t t;
-    srand((unsigned) time(&t));
     bin_t* bins = (bin_t*)malloc((n + 1) * sizeof(bin_t));
     for (int b = 0; b <= n; b++)
     {
         bins[b] = 0;
     }
 
-    uint16_t rand_bin_int;
+    float* cum_prob_arr = cumulative_binomial_distribution(n, p);
+
+    int rand_bin_int;
     for (int i = 0; i < iterations; i++)
     {
-        rand_bin_int = random_binomial_integer(n, p);
+        rand_bin_int = random_binomial_integer(n, cum_prob_arr);
+        printf("%d\n", rand_bin_int);
         bins[rand_bin_int] = bins[rand_bin_int] + 1;
     }
+
+    free(cum_prob_arr);
+    
     return bins;
+}
+
+int reed_frost_model_timestep(int susceptibles, int infectives, mpf_t indiv_probability)
+{
+    mpf_t p;
+    mpf_init(p);
+    mpf_set(p, mpf_ui_sub(1 - indiv_probability));
+    mpf_pow_ui(p, p, infectives);
+
+    
+    return 1;
 }
 
 int main(void)
 {
     clock_t begin = clock();
+    srand((unsigned) time(0));
 
     int n = 49;
     double p = 0.6;
     int iterations = 1000;
-    
+
     bin_t* bins;
 
     bins = simulate(iterations, n, p);
 
-    int sum = 0;
-    for (int i = 0; i <= n; i++)
-    {
-        printf("%02u: %u\n", i, bins[i]);
-        sum += bins[i];
-    }
     printf("sum = %u\n", sum);
 
     free(bins);
-    
+     
     clock_t end = clock();
     double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
     printf("In %f seconds\n", time_spent);
