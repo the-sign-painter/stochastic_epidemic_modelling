@@ -20,16 +20,9 @@ void factorial(uint8_t x, mpz_t x_fact)
 
 void binomial_distribution(mpf_t probability, int n, mpf_t p, int k)
 {
-    int scale = 1000000000;
-    int scaled_p = p * scale;
-    mpf_t p_f;
-    mpf_init(p_f);
-    mpf_set_d(p_f, scaled_p);
-    mpf_div_ui(p_f, p_f, scale);
-    
-    mpf_t q_f;
-    mpf_init(q_f);
-    mpf_ui_sub(q_f, 1, p_f);
+    mpf_t q;
+    mpf_init(q);
+    mpf_ui_sub(q, 1, p);
     
     // Get n! k! and (n-k)!
     mpz_t fact_n;
@@ -69,14 +62,13 @@ void binomial_distribution(mpf_t probability, int n, mpf_t p, int k)
     // Multiply by p^k and q^(n-k)
     mpf_t p_part_f;
     mpf_init(p_part_f);
-    mpf_pow_ui(p_part_f, p_f, k);
+    mpf_pow_ui(p_part_f, p, k);
     
     mpf_t q_part_f;
     mpf_init(q_part_f);
-    mpf_pow_ui(q_part_f, q_f, (n - k));
+    mpf_pow_ui(q_part_f, q, (n - k));
 
-    mpf_clear(p_f);
-    mpf_clear(q_f);
+    mpf_clear(q);
 
     mpf_mul(probability, p_part_f, q_part_f);
     mpf_mul(probability, probability, frac_part_f);
@@ -86,28 +78,30 @@ void binomial_distribution(mpf_t probability, int n, mpf_t p, int k)
     mpf_clear(q_part_f);
 }
 
-float* cumulative_binomial_distribution(int n, mpf_t p)
+prob_t* cumulative_binomial_distribution(int n, mpf_t p)
 {
     prob_t* cum_prob_arr = (prob_t*)malloc((n + 2) * sizeof(prob_t));
-    float* float_arr = (float*)malloc((n + 2) * sizeof(float));
 
     mpf_t probability;
     mpf_init(probability);
     mpf_init(cum_prob_arr[0]);
     mpf_set_ui(cum_prob_arr[0], 0);
 
-    for (int k = 0; k <= n; k++)
+    // k     = <0  0  1  2  ... n-1   n
+    // index =  0  1  2  3  ...  n   n+1 
+
+    int k;
+    for (int index = 1; index <= n+1; index++)
     {
+        k = index - 1;
         binomial_distribution(probability, n, p, k);
-        mpf_init(cum_prob_arr[k + 1]);
-        mpf_add(cum_prob_arr[k + 1], cum_prob_arr[k], probability);
-        float_arr[k + 1] = mpf_get_d(cum_prob_arr[k]) + mpf_get_d(probability);
+        mpf_init(cum_prob_arr[index]);
+        mpf_add(cum_prob_arr[index], cum_prob_arr[index-1], probability);
     }
 
     mpf_clear(probability);
-    free(cum_prob_arr);
 
-    return float_arr;
+    return cum_prob_arr;
 }
 
 void cumulative_uniform_random_float(mpf_t cumulative_probabilty, int n)
@@ -119,54 +113,97 @@ void cumulative_uniform_random_float(mpf_t cumulative_probabilty, int n)
     mpf_mul_ui(cumulative_probabilty, cumulative_probabilty, rand_num);
 }
 
-uint16_t random_binomial_integer(int n, float* cum_prob_arr)
+uint16_t random_binomial_integer(int n, prob_t* cum_prob_arr)
 {
     mpf_t cum_uni_prob;
     mpf_init(cum_uni_prob);
     cumulative_uniform_random_float(cum_uni_prob, n);
 
     int k = 0;
-    for (int i = 0; mpf_cmp_d(cum_uni_prob, cum_prob_arr[i]) > 0; i++)
+    for (int i = 0; mpf_cmp(cum_uni_prob, cum_prob_arr[i]) > 0; i++)
     {
         k = i+1;
     }
-    printf("%d\n", k);
+    k -= 1;
     mpf_clear(cum_uni_prob);
     return k;
 }
 
-bin_t* simulate_random_binomial_integer(int iterations, int n, mpf_t p)
+void get_infection_probability(mpf_t infection_probability, int infectives, mpf_t indiv_probability)
 {
-    bin_t* bins = (bin_t*)malloc((n + 1) * sizeof(bin_t));
-    for (int b = 0; b <= n; b++)
-    {
-        bins[b] = 0;
-    }
-
-    float* cum_prob_arr = cumulative_binomial_distribution(n, p);
-
-    int rand_bin_int;
-    for (int i = 0; i < iterations; i++)
-    {
-        rand_bin_int = random_binomial_integer(n, cum_prob_arr);
-        printf("%d\n", rand_bin_int);
-        bins[rand_bin_int] = bins[rand_bin_int] + 1;
-    }
-
-    free(cum_prob_arr);
-    
-    return bins;
+    // p_i = 1 - ( 1 - p ) ^ I
+    mpf_ui_sub(infection_probability, 1, indiv_probability);
+    mpf_pow_ui(infection_probability, infection_probability, infectives);
+    mpf_ui_sub(infection_probability, 1, infection_probability);
 }
 
 int reed_frost_model_timestep(int susceptibles, int infectives, mpf_t indiv_probability)
 {
+    int n = susceptibles;
+
     mpf_t p;
     mpf_init(p);
-    mpf_set(p, mpf_ui_sub(1 - indiv_probability));
-    mpf_pow_ui(p, p, infectives);
+    get_infection_probability(p, infectives, indiv_probability);
 
+    prob_t* cum_prob_arr = cumulative_binomial_distribution(n, p);
+    int new_infectives = random_binomial_integer(n, cum_prob_arr);
+
+    free(cum_prob_arr);
+    mpf_clear(p);
+
+    if ((n - new_infectives) <= 0)
+    {
+        return 0;
+    }
+
+    return new_infectives;
+}
+
+int reed_frost_model(int initial_susceptibles, int initial_infectives, mpf_t indiv_probability)
+{
+    int n = initial_susceptibles;
+    int z = initial_infectives;
+    while (z != 0)
+    {
+        z = reed_frost_model_timestep(n, z, indiv_probability);
+        n -= z;
+    }
+    int total_size = initial_susceptibles - n;
+    return total_size;
+}
+
+bin_t* reed_frost_model_simulate(int iterations, int initial_susceptibles, int initial_infectives, mpf_t indiv_probability)
+{
+    int num_bins = initial_susceptibles + initial_infectives + 1;
+    bin_t* total_size_bins = (bin_t*)malloc(num_bins * sizeof(bin_t));
     
-    return 1;
+    for (int b = 0; b < num_bins; b++)
+    {
+        total_size_bins[b] = 0;
+    }
+
+    int total_size;
+
+    for (int i = 0; i < iterations; i++)
+    {
+        total_size = reed_frost_model(initial_susceptibles, initial_infectives, indiv_probability);
+        total_size_bins[total_size] += 1;
+    }
+    
+    for (int b = 0; b < num_bins; b++)
+    {
+        printf("%02d: %d\n", b, total_size_bins[b]);
+    }
+
+    return total_size_bins;
+}
+
+void convert_double_to_mpf(double f, mpf_t accurate_float)
+{
+    int scale = 100000;
+    double scaled_f = scale * f;
+    mpf_set_d(accurate_float, scaled_f);
+    mpf_div_ui(accurate_float, accurate_float, scale);
 }
 
 int main(void)
@@ -174,21 +211,24 @@ int main(void)
     clock_t begin = clock();
     srand((unsigned) time(0));
 
-    int n = 49;
-    double p = 0.6;
-    int iterations = 1000;
+    int susceptibles = 49;
+    int infectives = 1;
+    double indiv_probability_d = 0.1;
+    int iterations = 100;
 
-    bin_t* bins;
+    mpf_t indiv_probability;
+    mpf_init(indiv_probability);
+    convert_double_to_mpf(indiv_probability_d, indiv_probability);
 
-    bins = simulate(iterations, n, p);
+    bin_t* out = reed_frost_model_simulate(iterations, susceptibles, infectives, indiv_probability);
 
-    printf("sum = %u\n", sum);
+    mpf_clear(indiv_probability);
+    free(out);
 
-    free(bins);
-     
     clock_t end = clock();
     double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
     printf("In %f seconds\n", time_spent);
 
     return 0;
 }
+
