@@ -6,7 +6,7 @@
 #include <time.h>
 
 
-typedef uint16_t bin_t;
+typedef uint32_t bin_t;
 typedef mpf_t prob_t;
 
 void factorial(uint8_t x, mpz_t x_fact)
@@ -113,7 +113,7 @@ void cumulative_uniform_random_float(mpf_t cumulative_probabilty, int n)
     mpf_mul_ui(cumulative_probabilty, cumulative_probabilty, rand_num);
 }
 
-uint16_t random_binomial_integer(int n, prob_t* cum_prob_arr)
+bin_t random_binomial_integer(int n, prob_t* cum_prob_arr)
 {
     mpf_t cum_uni_prob;
     mpf_init(cum_uni_prob);
@@ -187,6 +187,7 @@ bin_t* reed_frost_model_simulate(int iterations, int initial_susceptibles, int i
     for (int i = 0; i < iterations; i++)
     {
         total_size = reed_frost_model(initial_susceptibles, initial_infectives, indiv_probability);
+        printf("total_size = %u\n", total_size);
         total_size_bins[total_size] += 1;
     }
     
@@ -221,6 +222,13 @@ int main(void)
     convert_double_to_mpf(indiv_probability_d, indiv_probability);
 
     bin_t* out = reed_frost_model_simulate(iterations, susceptibles, infectives, indiv_probability);
+
+    /*
+    for (int i = 0; i < iterations; i++)
+    {
+        printf("%d: %d\n", i, out[i]);
+    }
+    */
 
     mpf_clear(indiv_probability);
     free(out);
