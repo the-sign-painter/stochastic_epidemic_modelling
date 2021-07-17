@@ -1,6 +1,6 @@
 #! /bin/bash
 
-CFLAGS="-pedantic -Wall -Werror"
+CFLAGS="-pedantic -Wall -Werror -ggdb3"
 CLIBS="-lm -lgmp"
 SRCDIR="src"
 OUTDIR="output"
