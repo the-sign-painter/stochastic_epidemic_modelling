@@ -38,6 +38,48 @@ void generate_random_mpf(mpf_t rand_float)
     mpf_mul_ui(rand_float, rand_float, rand_int);
 }
 
+markovian_frame_t markovian_SIR_timestep(markovian_frame_t frame, mpf_t infection_rate, mpf_t recovery_rate, mpf_t avg_infected, mpf_t avg_recovered, mpf_t prob_infection, mpf_t rand_float)
+{
+    mpf_mul_ui(avg_infected, infection_rate, frame.susceptibles);
+    mpf_mul_ui(avg_recovered, recovery_rate, frame.infectives);
+    mpf_add(prob_infection, avg_infected, avg_recovered);
+    mpf_ui_div(prob_infection, 1, prob_infection);
+    mpf_mul(prob_infection, prob_infection, avg_infected);
+    generate_random_mpf(rand_float);
+    if (mpf_cmp(rand_float, prob_infection) < 0)
+    {
+        frame.susceptibles--;
+        frame.infectives++;
+    }
+    else
+    {
+        frame.infectives--;
+        frame.removed++;
+    }
+    return frame;
+}
+
+markovian_frame_t markovian_SIS_timestep(markovian_frame_t frame, mpf_t infection_rate, mpf_t recovery_rate, mpf_t avg_infected, mpf_t avg_recovered, mpf_t prob_infection, mpf_t rand_float)
+{
+    mpf_mul_ui(avg_infected, infection_rate, frame.susceptibles);
+    mpf_mul_ui(avg_recovered, recovery_rate, frame.infectives);
+    mpf_add(prob_infection, avg_infected, avg_recovered);
+    mpf_ui_div(prob_infection, 1, prob_infection);
+    mpf_mul(prob_infection, prob_infection, avg_infected);
+    generate_random_mpf(rand_float);
+    if (mpf_cmp(rand_float, prob_infection) < 0)
+    {
+        frame.susceptibles--;
+        frame.infectives++;
+    }
+    else
+    {
+        frame.infectives--;
+        frame.susceptibles++;
+    }
+    return frame;
+}
+
 timestep_t simulate_markovian(mpf_t infection_rate, mpf_t recovery_rate, uint8_t initial_susceptibles, uint8_t initial_infectives, mpf_t rand_float)
 {
     markovian_frame_t frame;
@@ -57,22 +99,7 @@ timestep_t simulate_markovian(mpf_t infection_rate, mpf_t recovery_rate, uint8_t
 
     while (frame.infectives > 0)
     {
-        mpf_mul_ui(avg_infected, infection_rate, frame.susceptibles);
-        mpf_mul_ui(avg_recovered, recovery_rate, frame.infectives);
-        mpf_add(prob_infection, avg_infected, avg_recovered);
-        mpf_ui_div(prob_infection, 1, prob_infection);
-        mpf_mul(prob_infection, prob_infection, avg_infected);
-        generate_random_mpf(rand_float);
-        if (mpf_cmp(rand_float, prob_infection) < 0)
-        {
-            frame.susceptibles--;
-            frame.infectives++;
-        }
-        else
-        {
-            frame.infectives--;
-            frame.removed++;
-        }
+        frame = markovian_SIR_timestep(frame, infection_rate, recovery_rate, avg_infected, avg_recovered, prob_infection, rand_float);
         timestep++;
     }
 
@@ -82,6 +109,8 @@ timestep_t simulate_markovian(mpf_t infection_rate, mpf_t recovery_rate, uint8_t
 
     return timestep;
 }
+
+
 
 void simulate(bin_array_t bin_array, uint64_t iterations, double infection_rate_d, double recovery_rate_d, uint8_t initial_susceptibles, uint8_t initial_infectives)
 {
@@ -130,7 +159,10 @@ void save_data(bin_array_t bin_array)
     }
     for (int i = 0; i < bin_array.size; i++)
     {
-        fprintf(fp, "%u %u\n", i, bin_array.array[i]);
+        if (i%2 == 1)
+        {
+            fprintf(fp, "%u %u\n", i, bin_array.array[i]);
+        }
     }
     fclose(fp);
 }
@@ -152,7 +184,7 @@ int main(void)
     clock_t begin = clock();
     srand(time(NULL));
 
-    uint8_t time_range = 100;
+    uint64_t time_range = 250;
     uint64_t iterations = 100000;
 
     double infection_rate = 0.01;
