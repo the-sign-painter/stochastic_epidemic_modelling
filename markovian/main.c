@@ -120,15 +120,30 @@ void print_bin_array(bin_array_t bin_array)
     }
 }
 
-void draw_graph(bin_array_t bin_array)
+void save_data(bin_array_t bin_array)
 {
-    FILE *gnuplot = popen("gnuplot -persist", "w");
-    fprintf(gnuplot, "plot '-'\n");
+    FILE* fp = fopen("data", "w");
+    if (fp == NULL)
+    {
+        printf("Cannot open data file.");
+        exit(-1);
+    }
     for (int i = 0; i < bin_array.size; i++)
     {
-        fprintf(gnuplot, "%u %u\n", i, bin_array.array[i]);
+        fprintf(fp, "%u %u\n", i, bin_array.array[i]);
     }
-    fprintf(gnuplot, "e\n");
+    fclose(fp);
+}
+
+void draw_graph()
+{
+    FILE *gnuplot = popen("gnuplot plot_graph.p", "r");
+    fflush(gnuplot);
+}
+
+void draw_hist()
+{
+    FILE* gnuplot = popen("gnuplot plot_histogram.p", "r");
     fflush(gnuplot);
 }
 
@@ -153,7 +168,9 @@ int main(void)
     simulate(bin_array, iterations, infection_rate, recovery_rate, initial_susceptibles, initial_infectives);
 
     //print_bin_array(bin_array);
-    draw_graph(bin_array);
+    save_data(bin_array);
+    draw_graph();
+    draw_hist();
 
     free(bins);
 
