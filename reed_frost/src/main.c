@@ -251,7 +251,6 @@ void draw_histogram(bin_t* bins, int num_bins)
     {
         for (int j = 0; j < num_bins; j++)
         {
-            int square = ( bins[j] - ( i * y_interval_size ) );
             if ( ( bins[j] - (i * y_interval_size) ) > (y_max_intervals / 2) )
             {
                 printf("*");
@@ -285,7 +284,6 @@ int main(void)
                                             infectives,
                                             indiv_probability);
 
-    int num_bins = susceptibles + infectives + 1;
     // draw_histogram(bins, num_bins);
 
     mpf_clear(indiv_probability);
