@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/sh
 
 ABSDIR="$(dirname $(readlink -f $0))"
 
@@ -6,8 +6,10 @@ date
 
 CFLAGS="-pedantic -Wall -Werror -ggdb3"
 CLIBS="-lm -lgmp"
-SRCDIR="src"
-OUTDIR="output"
+SRCDIR="${ABSDIR}/src"
+OUTDIR="${ABSDIR}/output"
+
+mkdir -p ${OUTDIR}
 
 gcc ${CLIBS} ${SRCDIR}/main.c ${CFLAGS} -o ${OUTDIR}/main
 

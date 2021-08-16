@@ -9,6 +9,8 @@ CLIBS="-lm -lgmp"
 SRCDIR="${ABSDIR}/src"
 OUTDIR="${ABSDIR}/output"
 
+mkdir -p ${OUTDIR}
+
 gcc ${CLIBS} ${SRCDIR}/main.c ${CFLAGS} -o ${OUTDIR}/main
 
 if [[ $? -ne 0 ]]; then
