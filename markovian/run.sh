@@ -20,4 +20,5 @@ fi
 
 echo "Compiled successfully"
 ./output/main
-
+sleep 0.5
+viu ./output/graph.png
