@@ -23,6 +23,18 @@ typedef struct
     mpz_t sum;
 } bin_array_t;
 
+typedef struct
+{
+    double infection_rate_d;
+    double recovery_rate_d;
+    mpf_t infection_rate;
+    mpf_t recovery_rate;
+    uint8_t initial_susceptibles;
+    uint8_t initial_infectives;
+    uint64_t time_range;
+    uint64_t iterations;
+} context_t;
+
 
 uint16_t generate_random_integer(uint16_t start, uint16_t end)
 {
@@ -39,10 +51,10 @@ void generate_random_mpf(mpf_t rand_float)
     mpf_mul_ui(rand_float, rand_float, rand_int);
 }
 
-markovian_frame_t markovian_SIR_timestep(markovian_frame_t frame, mpf_t infection_rate, mpf_t recovery_rate, mpf_t avg_infected, mpf_t avg_recovered, mpf_t prob_infection, mpf_t rand_float)
+markovian_frame_t markovian_SIR_timestep(markovian_frame_t frame, context_t context, mpf_t rand_float, mpf_t avg_infected, mpf_t avg_recovered, mpf_t prob_infection)
 {
-    mpf_mul_ui(avg_infected, infection_rate, frame.susceptibles);
-    mpf_mul_ui(avg_recovered, recovery_rate, frame.infectives);
+    mpf_mul_ui(avg_infected, context.infection_rate, frame.susceptibles);
+    mpf_mul_ui(avg_recovered, context.recovery_rate, frame.infectives);
     mpf_add(prob_infection, avg_infected, avg_recovered);
     mpf_ui_div(prob_infection, 1, prob_infection);
     mpf_mul(prob_infection, prob_infection, avg_infected);
@@ -60,10 +72,10 @@ markovian_frame_t markovian_SIR_timestep(markovian_frame_t frame, mpf_t infectio
     return frame;
 }
 
-markovian_frame_t markovian_SIS_timestep(markovian_frame_t frame, mpf_t infection_rate, mpf_t recovery_rate, mpf_t avg_infected, mpf_t avg_recovered, mpf_t prob_infection, mpf_t rand_float)
+markovian_frame_t markovian_SIS_timestep(markovian_frame_t frame, context_t context, mpf_t rand_float, mpf_t avg_infected, mpf_t avg_recovered, mpf_t prob_infection)
 {
-    mpf_mul_ui(avg_infected, infection_rate, frame.susceptibles);
-    mpf_mul_ui(avg_recovered, recovery_rate, frame.infectives);
+    mpf_mul_ui(avg_infected, context.infection_rate, frame.susceptibles);
+    mpf_mul_ui(avg_recovered, context.recovery_rate, frame.infectives);
     mpf_add(prob_infection, avg_infected, avg_recovered);
     mpf_ui_div(prob_infection, 1, prob_infection);
     mpf_mul(prob_infection, prob_infection, avg_infected);
@@ -81,11 +93,11 @@ markovian_frame_t markovian_SIS_timestep(markovian_frame_t frame, mpf_t infectio
     return frame;
 }
 
-timestep_t simulate_markovian(mpf_t infection_rate, mpf_t recovery_rate, uint8_t initial_susceptibles, uint8_t initial_infectives, mpf_t rand_float)
+timestep_t simulate_markovian(context_t context, mpf_t rand_float)
 {
     markovian_frame_t frame;
-    frame.susceptibles = initial_susceptibles;
-    frame.infectives = initial_infectives;
+    frame.susceptibles = context.initial_susceptibles;
+    frame.infectives = context.initial_infectives;
     frame.removed = 0;
     timestep_t timestep = 0;
 
@@ -100,7 +112,7 @@ timestep_t simulate_markovian(mpf_t infection_rate, mpf_t recovery_rate, uint8_t
 
     while (frame.infectives > 0)
     {
-        frame = markovian_SIR_timestep(frame, infection_rate, recovery_rate, avg_infected, avg_recovered, prob_infection, rand_float);
+        frame = markovian_SIR_timestep(frame, context, rand_float, avg_infected, avg_recovered, prob_infection);
         timestep++;
     }
 
@@ -111,14 +123,12 @@ timestep_t simulate_markovian(mpf_t infection_rate, mpf_t recovery_rate, uint8_t
     return timestep;
 }
 
-void simulate(bin_array_t bin_array, uint64_t iterations, double infection_rate_d, double recovery_rate_d, uint8_t initial_susceptibles, uint8_t initial_infectives)
+void simulate(bin_array_t bin_array, context_t context)
 {
-    mpf_t infection_rate;
-    mpf_init(infection_rate);
-    mpf_set_d(infection_rate, infection_rate_d);
-    mpf_t recovery_rate;
-    mpf_init(recovery_rate);
-    mpf_set_d(recovery_rate, recovery_rate_d);
+    mpf_init(context.infection_rate);
+    mpf_set_d(context.infection_rate, context.infection_rate_d);
+    mpf_init(context.recovery_rate);
+    mpf_set_d(context.recovery_rate, context.recovery_rate_d);
 
     for (int i = 0; i < bin_array.size; i++)
     {
@@ -127,9 +137,9 @@ void simulate(bin_array_t bin_array, uint64_t iterations, double infection_rate_
     mpf_t rand_float;
     mpf_init(rand_float);
 
-    for (int i = 0; i < iterations; i++)
+    for (int i = 0; i < context.iterations; i++)
     {
-        timestep_t age = simulate_markovian(infection_rate, recovery_rate, initial_susceptibles, initial_infectives, rand_float);
+        timestep_t age = simulate_markovian(context, rand_float);
         if (bin_array.size > age)
         {
             bin_array.array[age] += 1;
@@ -137,8 +147,8 @@ void simulate(bin_array_t bin_array, uint64_t iterations, double infection_rate_
     }
     
     mpf_clear(rand_float);
-    mpf_clear(infection_rate);
-    mpf_clear(recovery_rate);
+    mpf_clear(context.infection_rate);
+    mpf_clear(context.recovery_rate);
 }
 
 void print_bin_array(bin_array_t bin_array)
@@ -185,17 +195,19 @@ void make_graph_script(void)
     char* project_path = realpath(".", NULL);
     char* data_path = realpath("./output/data", NULL);
     fprintf(fp, "reset\n");
-    fprintf(fp, "set terminal png size 500,500\n");
+    fprintf(fp, "set terminal png size 600,600\n");
     fprintf(fp, "set output \"%s/output/graph.png\"\n", project_path);
     fprintf(fp, "set title \"Markovian SIR Model Time Period\"\n");
     fprintf(fp, "set xlabel \"Time\"\n");
     fprintf(fp, "set ylabel \"Frequency\"\n");
-    fprintf(fp, "plot \"%s\"\n", data_path);
+    fprintf(fp, "set nokey\n");
+    fprintf(fp, "plot \"%s\" with lines\n", data_path);
     fclose(fp);
 }
 
 void make_hist_script(void)
 {
+    // FIXME: Incorrect binning I think
     FILE *fp = fopen("output/plot_histogram.p", "w");
     if (fp == NULL)
     {
@@ -222,6 +234,7 @@ void make_hist_script(void)
     fprintf(fp, "set title \"Markovian SIR Model Time Period\"\n");
     fprintf(fp, "set xlabel \"Time\"\n");
     fprintf(fp, "set ylabel \"Frequency\"\n");
+    fprintf(fp, "set nokey\n");
     fprintf(fp, "plot \"%s\" using (hist($2,width)):(1.0) smooth freq with boxes lc rgb\"green\"\n", data_path);
 }
 
@@ -251,17 +264,27 @@ void generate_deterministic_SIR(bin_array_t x, bin_array_t y, uint64_t time_rang
     x.array[0] = 0;
     y.array[0] = 0;
 
+    mpf_t dy;
+    mpf_init(dy);
     mpf_t dI;
     mpf_init(dI);
-    bin_t dy;
+    mpf_t dR;
+    mpf_init(dR);
+    double dy_d;
     for (int i = 1; i < x.size; i++)
     {
-        mpf_set(dI, infection_rate);
+        mpf_mul_ui(dI, infection_rate, y.array[i-1]);
+        mpf_mul_ui(dR, recovery_rate, y.array[i-1]);
+
         x.array[i] = i * step_size;
-        dy = 1;
-        y.array[i] = y.array[i-1] + dy;
+
+        mpf_sub(dy, dI, dR);
+        dy_d = mpf_get_d(dy);
+        y.array[i] = y.array[i-1] + dy_d;
     }
+    mpf_clear(dy);
     mpf_clear(dI);
+    mpf_clear(dR);
 }
 
 int main(void)
@@ -269,24 +292,37 @@ int main(void)
     clock_t begin = clock();
     srand(time(NULL));
 
-    uint64_t time_range = 100;
-    uint64_t iterations = 100000;
+    context_t context;
 
-    double infection_rate = 0.01;
-    double recovery_rate = 0.1;
-    uint8_t initial_susceptibles = 49;
-    uint8_t initial_infectives = 1;
+    context.time_range = 100;
+    context.iterations = 10000;
 
-    bin_t* bins = (bin_t*)malloc(time_range * sizeof(bin_t));
+    context.infection_rate_d = 0.01;
+    context.recovery_rate_d = 0.1;
+    context.initial_susceptibles = 49;
+    context.initial_infectives = 1;
+
+    bin_t* bins = (bin_t*)malloc(context.time_range * sizeof(bin_t));
     bin_array_t bin_array;
-    bin_array.size = time_range;
+    bin_array.size = context.time_range;
     bin_array.array = bins;
-    mpz_init(bin_array.sum);
 
-    simulate(bin_array, iterations, infection_rate, recovery_rate, initial_susceptibles, initial_infectives);
+    simulate(bin_array, context);
+/*
+    uint32_t det_precision = 400;
+    bin_t* x_arr = (bin_t*)malloc(det_precision * sizeof(bin_t));
+    bin_array_t x;
+    x.size = det_precision;
+    x.array = x_arr;
+    bin_t* y_arr = (bin_t*)malloc(det_precision * sizeof(bin_t));
+    bin_array_t y;
+    y.size = det_precision;
+    y.array = y_arr;
 
+    generate_deterministic_SIR(x, y, time_range, infection_rate, recovery_rate, initial_infectives, initial_susceptibles);
+*/
     //print_bin_array(bin_array);
-    save_data(bin_array, iterations);
+    save_data(bin_array, context.iterations);
     make_graph_script();
     draw_graph();
     make_hist_script();
