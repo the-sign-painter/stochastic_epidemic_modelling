@@ -4,8 +4,8 @@ ABSDIR="$(dirname $(readlink -f $0))"
 
 date
 
-CFLAGS="-pedantic -Wall -Werror -ggdb3"
-CLIBS="-lm -lgmp"
+CFLAGS="-pedantic -Werror -ggdb3"
+CLIBS="-lm -lgmp -g"
 SRCDIR="${ABSDIR}/src"
 OUTDIR="${ABSDIR}/output"
 
@@ -20,5 +20,11 @@ fi
 
 echo "Compiled successfully"
 ./output/main
-sleep 0.5
-viu ./output/graph.png
+
+if [[ $? -ne 0 ]]; then
+    echo "Execute failed"
+    exit 1
+fi
+echo "Executed sucessfully"
+# sleep 0.5
+# viu ./output/graph.png

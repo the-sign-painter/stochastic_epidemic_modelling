@@ -1,26 +1,44 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <gmp.h>
 
+#define EP_MODEL_MARK_SIR 1
+#define EP_MODEL_MARK_SIS 2
 
 typedef uint16_t bin_t;
-
+typedef uint16_t pop_t;
 typedef uint16_t timestep_t;
 
 typedef struct
 {
-    uint8_t susceptibles;
-    uint8_t infectives;
-    uint8_t removed;
+    pop_t susceptibles;
+    pop_t infectives;
+    pop_t removed;
 } markovian_frame_t;
+
+typedef struct
+{
+    pop_t* susceptibles;
+    pop_t* infectives;
+    pop_t* removed;
+    uint16_t size;
+} markovian_frame_array_t;
+
+typedef struct
+{
+    double* susceptibles;
+    double* infectives;
+    double* removed;
+    uint16_t size;
+} markovian_avg_frame_array_t;
 
 typedef struct
 {
     uint8_t size;
     bin_t* array;
-    mpz_t sum;
 } bin_array_t;
 
 typedef struct
@@ -93,7 +111,7 @@ markovian_frame_t markovian_SIS_timestep(markovian_frame_t frame, context_t cont
     return frame;
 }
 
-timestep_t simulate_markovian(context_t context, mpf_t rand_float)
+timestep_t markovian_age(context_t context, mpf_t rand_float, uint8_t mode, mpf_t avg_infected, mpf_t avg_recovered, mpf_t prob_infection)
 {
     markovian_frame_t frame;
     frame.susceptibles = context.initial_susceptibles;
@@ -101,34 +119,69 @@ timestep_t simulate_markovian(context_t context, mpf_t rand_float)
     frame.removed = 0;
     timestep_t timestep = 0;
 
-    mpf_t avg_infected;
-    mpf_init(avg_infected);
-
-    mpf_t avg_recovered;
-    mpf_init(avg_recovered);
-
-    mpf_t prob_infection;
-    mpf_init(prob_infection);
-
     while (frame.infectives > 0)
     {
-        frame = markovian_SIR_timestep(frame, context, rand_float, avg_infected, avg_recovered, prob_infection);
+        if (mode == EP_MODEL_MARK_SIR)
+        {
+            frame = markovian_SIR_timestep(frame, context, rand_float, avg_infected, avg_recovered, prob_infection);
+        }
+        else if (mode == EP_MODEL_MARK_SIS)
+        {
+            frame = markovian_SIS_timestep(frame, context, rand_float, avg_infected, avg_recovered, prob_infection);
+        }
+        else
+        {
+            printf("No markovian mode selected.\n");
+            exit(-1);
+        }
         timestep++;
     }
-
-    mpf_clear(avg_infected);
-    mpf_clear(avg_recovered);
-    mpf_clear(prob_infection);
-
     return timestep;
 }
 
-void simulate(bin_array_t bin_array, context_t context)
+void markovian_pop(context_t context, mpf_t rand_float, uint8_t mode, markovian_frame_array_t frame_array, mpf_t avg_infected, mpf_t avg_recovered, mpf_t prob_infection)
 {
-    mpf_init(context.infection_rate);
-    mpf_set_d(context.infection_rate, context.infection_rate_d);
-    mpf_init(context.recovery_rate);
-    mpf_set_d(context.recovery_rate, context.recovery_rate_d);
+    markovian_frame_t frame;
+    frame.susceptibles = context.initial_susceptibles;
+    frame.infectives = context.initial_infectives;
+    frame.removed = 0;
+    timestep_t timestep = 0;
+    frame_array.susceptibles[0] = frame.susceptibles;
+    frame_array.infectives[0] = frame.infectives;
+    frame_array.removed[0] = frame.removed;
+    for (int i = 0; i < context.time_range; i++)
+    {
+        if (mode == EP_MODEL_MARK_SIR)
+        {
+            frame = markovian_SIR_timestep(frame, context, rand_float, avg_infected, avg_recovered, prob_infection);
+        }
+        else if (mode == EP_MODEL_MARK_SIS)
+        {
+            frame = markovian_SIS_timestep(frame, context, rand_float, avg_infected, avg_recovered, prob_infection);
+        }
+        else
+        {
+            printf("No markovian mode selected.\n");
+            exit(-1);
+        }
+        frame_array.susceptibles[i+1] = frame.susceptibles;
+        frame_array.infectives[i+1] = frame.infectives;
+        frame_array.removed[i+1] = frame.removed;
+        if (frame.infectives < 1)
+        {
+            break;
+        }
+    }
+}
+
+void simulate_markovian_age(bin_array_t bin_array, context_t context, uint8_t mode)
+{
+    mpf_t avg_infected;
+    mpf_init(avg_infected);
+    mpf_t avg_recovered;
+    mpf_init(avg_recovered);
+    mpf_t prob_infection;
+    mpf_init(prob_infection);
 
     for (int i = 0; i < bin_array.size; i++)
     {
@@ -139,83 +192,157 @@ void simulate(bin_array_t bin_array, context_t context)
 
     for (int i = 0; i < context.iterations; i++)
     {
-        timestep_t age = simulate_markovian(context, rand_float);
+        timestep_t age = markovian_age(context, rand_float, mode, avg_infected, avg_recovered, prob_infection);
         if (bin_array.size > age)
         {
             bin_array.array[age] += 1;
         }
     }
+    mpf_clear(avg_infected);
+    mpf_clear(avg_recovered);
+    mpf_clear(prob_infection);
     
     mpf_clear(rand_float);
-    mpf_clear(context.infection_rate);
-    mpf_clear(context.recovery_rate);
 }
 
-void print_bin_array(bin_array_t bin_array)
+void simulate_markovian_pop(markovian_frame_array_t cum_frame_array, context_t context, uint8_t mode)
 {
-    for (int i = 0; i < bin_array.size; i++)
-    {
-        printf("%u: %u\n", i, bin_array.array[i]);
-    }
-}
+    mpf_t avg_infected;
+    mpf_init(avg_infected);
+    mpf_t avg_recovered;
+    mpf_init(avg_recovered);
+    mpf_t prob_infection;
+    mpf_init(prob_infection);
+    mpf_t rand_float;
+    mpf_init(rand_float);
 
-void save_data(bin_array_t bin_array, uint64_t iterations)
-{
-    FILE* fp = fopen("output/data", "w");
-    if (fp == NULL)
+    markovian_frame_array_t frame_array;
+    frame_array.size = cum_frame_array.size;
+    frame_array.susceptibles = (pop_t*)malloc((frame_array.size+1) * sizeof(pop_t));
+    frame_array.infectives = (pop_t*)malloc((frame_array.size+1) * sizeof(pop_t));
+    frame_array.removed = (pop_t*)malloc((frame_array.size+1) * sizeof(pop_t));
+
+    for (int i = 0; i < frame_array.size; i++)
     {
-        printf("Cannot open data file.\n");
-        exit(-1);
+        cum_frame_array.susceptibles[i] = 0;
+        cum_frame_array.infectives[i] = 0;
+        cum_frame_array.removed[i] = 0;
     }
-    mpf_t normalised_freq;
-    mpf_init(normalised_freq);
-    double freq;
-    for (int i = 0; i < bin_array.size; i++)
+
+    for (int i = 0; i < context.iterations; i++)
     {
-        if (i%2 == 1)
+        markovian_pop(context, rand_float, mode, frame_array, avg_infected, avg_recovered, prob_infection);
+        for (int j = 0; j < frame_array.size; j++)
         {
-            mpf_set_ui(normalised_freq, iterations);
-            mpf_ui_div(normalised_freq, bin_array.array[i], normalised_freq);
-            freq = mpf_get_d(normalised_freq);
-            fprintf(fp, "%u %f\n", i, freq);
+            cum_frame_array.susceptibles[j] = ((double)*cum_frame_array.susceptibles[j] * (double)i + (double)*frame_array.susceptibles) / ((double)i + 1);
+            cum_frame_array.infectives[j] = ((double)*cum_frame_array.infectives[j] * (double)i + (double)*frame_array.infectives) / ((double)i + 1);
+            cum_frame_array.removed[j] = ((double)*cum_frame_array.removed[j] * (double)i + (double)*frame_array.removed) / ((double)i + 1);
         }
     }
-    mpf_clear(normalised_freq);
+
+    free(frame_array.susceptibles);
+    free(frame_array.infectives);
+    free(frame_array.removed);
+
+    mpf_clear(avg_infected);
+    mpf_clear(avg_recovered);
+    mpf_clear(prob_infection);
+    mpf_clear(rand_float);
+}
+
+void save_data(double* x, double* y, uint64_t size, char* name)
+{
+    char loc[128] = "output/";
+    strcat(loc, name);
+    strcat(loc, ".data");
+    FILE* fp = fopen(loc, "w");
+    if (fp == NULL)
+    {
+        printf("Cannot open data file '%s'\n", loc);
+        exit(-1);
+    }
+    for (int i = 0; i < size ; i++)
+    {
+        fprintf(fp, "%f %f\n", x[i], y[i]);
+    }
     fclose(fp);
 }
 
-void make_graph_script(void)
+void save_bin(bin_array_t bin_array, context_t context, char* name)
 {
-    FILE *fp = fopen("output/plot_graph.p", "w");
+    uint8_t clean_size = context.time_range / 2;
+    double* x = (double*)malloc(clean_size * sizeof(double));
+    double* y = (double*)malloc(clean_size * sizeof(double));
+
+    mpf_t normalised_freq;
+    mpf_init(normalised_freq);
+    for (int i = 0; i < clean_size; i++)
+    {
+        x[i] = i;
+        mpf_set_ui(normalised_freq, context.iterations);
+        mpf_ui_div(normalised_freq, bin_array.array[i*2+1], normalised_freq);
+        y[i] = mpf_get_d(normalised_freq);
+    }
+    mpf_clear(normalised_freq);
+    save_data(x, y, clean_size, name);
+    free(x);
+    free(y);
+}
+
+void save_pop(pop_t* pop, uint16_t size, char* name)
+{
+    double* x = (double*)malloc((size+1) * sizeof(double));
+    double* y = (double*)malloc((size+1) * sizeof(double));
+    for (int i = 0; i < size; i++)
+    {
+        x[i] = (double)i;
+        y[i] = (double)pop[i];
+    }
+    save_data(x, y, size+1, name);
+    free(x);
+    free(y);
+}
+
+void make_graph_script(char* name)
+{
+    FILE* fp = fopen("output/plot_graph.p", "w");
     if (fp == NULL)
     {
         printf("Failed to create plot_graph.p file.\n");
         exit(-1);
     }
     char* project_path = realpath(".", NULL);
-    char* data_path = realpath("./output/data", NULL);
+    char loc[128] = "output/";
+    strcat(loc, name);
+    strcat(loc, ".data");
+    char* data_path = realpath(loc, NULL);
     fprintf(fp, "reset\n");
     fprintf(fp, "set terminal png size 600,600\n");
-    fprintf(fp, "set output \"%s/output/graph.png\"\n", project_path);
+    fprintf(fp, "set output \"%s/output/%s_graph.png\"\n", project_path, name);
     fprintf(fp, "set title \"Markovian SIR Model Time Period\"\n");
     fprintf(fp, "set xlabel \"Time\"\n");
     fprintf(fp, "set ylabel \"Frequency\"\n");
     fprintf(fp, "set nokey\n");
     fprintf(fp, "plot \"%s\" with lines\n", data_path);
+    free(project_path);
+    free(data_path);
     fclose(fp);
 }
 
-void make_hist_script(void)
+void make_hist_script(char* name)
 {
     // FIXME: Incorrect binning I think
-    FILE *fp = fopen("output/plot_histogram.p", "w");
+    FILE* fp = fopen("output/plot_histogram.p", "w");
     if (fp == NULL)
     {
         printf("Failed to create plot_histogram.p file.\n");
         exit(-1);
     }
     char* project_path = realpath(".", NULL);
-    char* data_path = realpath("./output/data", NULL);
+    char loc[128] = "output/";
+    strcat(loc, name);
+    strcat(loc, ".data");
+    char* data_path = realpath(loc, NULL);
     fprintf(fp, "reset\n");
     fprintf(fp, "n=100\n");
     fprintf(fp, "max=100\n");
@@ -223,7 +350,7 @@ void make_hist_script(void)
     fprintf(fp, "width=(max-min)/n\n");
     fprintf(fp, "hist(x,width)=width*floor(x/width)+width/2.0\n");
     fprintf(fp, "set terminal png size 500,500\n");
-    fprintf(fp, "set output \"%s/output/hist.png\"\n", project_path);
+    fprintf(fp, "set output \"%s/output/%s_hist.png\"\n", project_path, name);
     fprintf(fp, "set xrange [min:max]\n");
     fprintf(fp, "set yrange[0:]\n");
     fprintf(fp, "set offset graph 0.05,0.05,0.05,0.0\n");
@@ -236,55 +363,128 @@ void make_hist_script(void)
     fprintf(fp, "set ylabel \"Frequency\"\n");
     fprintf(fp, "set nokey\n");
     fprintf(fp, "plot \"%s\" using (hist($2,width)):(1.0) smooth freq with boxes lc rgb\"green\"\n", data_path);
+    free(project_path);
+    free(data_path);
+    fclose(fp);
 }
 
-void draw_graph(void)
+void draw_graph(char* name)
 {
-    FILE *gnuplot = popen("gnuplot output/plot_graph.p", "r");
+    make_graph_script(name);
+    FILE* gnuplot = popen("gnuplot output/plot_graph.p", "r");
     fflush(gnuplot);
+    fclose(gnuplot);
 }
 
-void draw_hist(void)
+void draw_hist(char* name)
 {
+    make_hist_script(name);
     FILE* gnuplot = popen("gnuplot output/plot_histogram.p", "r");
     fflush(gnuplot);
+    fclose(gnuplot);
 }
 
-void generate_deterministic_SIR(bin_array_t x, bin_array_t y, uint64_t time_range, mpf_t infection_rate, mpf_t recovery_rate, uint8_t initial_susceptibles, uint8_t initial_infectives)
+void generate_deterministic_SIR(double* x, double* y, uint64_t size, context_t context)
 {
     // TODO: Make deterministic SIR and SIS
 
-    if (x.size != y.size)
+    double step_size = (double)context.time_range / (double)size;
+
+    x[0] = 0;
+
+    double* S = malloc((size+1) * sizeof(double));
+    double* I = y;
+    double* R = malloc((size+1) * sizeof(double));
+    double dI;
+    double dS;
+    double dR;
+
+    S[0] = (double)context.initial_susceptibles;
+    I[0] = (double)context.initial_infectives;
+    R[0] = 0;
+
+    for (int i = 1; i <= size; i++)
     {
-        printf("x array is not same length as y array\n");
-        exit(-1);
+        //  dI = -dS - dR
+        //  dS = -beta * susceptible * infected
+        //  dR = gamma * infected
+        //  dI = beta * susceptible * infected - gamma * infected
+        x[i] = (double)i * step_size;
+        
+        dS = -context.infection_rate_d * I[i-1] * S[i-1];
+        dR = context.recovery_rate_d * I[i-1];
+        dI = -dS - dR;
+
+        S[i] = S[i-1] + dS;
+        I[i] = I[i-1] + dI;
+        R[i] = R[i-1] + dR;
     }
-    double step_size = (double)x.size / (double)time_range;
+    free(S);
+    I = NULL;
+    free(R);
+}
 
-    x.array[0] = 0;
-    y.array[0] = 0;
+// WRAPPED UP FUNCTIONS
 
-    mpf_t dy;
-    mpf_init(dy);
-    mpf_t dI;
-    mpf_init(dI);
-    mpf_t dR;
-    mpf_init(dR);
-    double dy_d;
-    for (int i = 1; i < x.size; i++)
-    {
-        mpf_mul_ui(dI, infection_rate, y.array[i-1]);
-        mpf_mul_ui(dR, recovery_rate, y.array[i-1]);
+int markovian_SIR_age(context_t context)
+{
+    bin_t* bins = (bin_t*)malloc(context.time_range * sizeof(bin_t));
+    bin_array_t bin_array;
+    bin_array.size = context.time_range;
+    bin_array.array = bins;
 
-        x.array[i] = i * step_size;
+    char* name = "stoch_mark_SIR_age";
+    simulate_markovian_age(bin_array, context, EP_MODEL_MARK_SIR);
+    save_bin(bin_array, context, name);
+    free(bins);
+    
+    draw_graph(name);
+    draw_hist(name);
+    return 0;
+}
 
-        mpf_sub(dy, dI, dR);
-        dy_d = mpf_get_d(dy);
-        y.array[i] = y.array[i-1] + dy_d;
-    }
-    mpf_clear(dy);
-    mpf_clear(dI);
-    mpf_clear(dR);
+int markovian_SIS_age(context_t context)
+{
+    bin_t* bins = (bin_t*)malloc(context.time_range * sizeof(bin_t));
+    bin_array_t bin_array;
+    bin_array.size = context.time_range;
+    bin_array.array = bins;
+
+    char* name = "stoch_mark_SIS_age";
+    simulate_markovian_age(bin_array, context, EP_MODEL_MARK_SIS);
+    save_bin(bin_array, context, name);
+    free(bins);
+   
+    draw_graph(name);
+    draw_hist(name);
+    return 0;
+}
+
+int markovian_SIR_pop(context_t context)
+{
+    markovian_cum_frame_array_t cum_frame_array;
+    cum_frame_array.size = context.time_range;
+    cum_frame_array.susceptibles = (double*)malloc((cum_frame_array.size+1) * sizeof(double));
+    cum_frame_array.infectives = (double*)malloc((cum_frame_array.size+1) * sizeof(double));
+    cum_frame_array.removed = (double*)malloc((cum_frame_array.size+1) * sizeof(double));
+
+    simulate_markovian_pop(cum_frame_array, context, EP_MODEL_MARK_SIR);
+
+    save_pop(cum_frame_array.infectives, cum_frame_array.size, "stoch_mark_SIR_pop");
+
+    free(cum_frame_array.susceptibles);
+    free(cum_frame_array.infectives);
+    free(cum_frame_array.removed);
+
+    uint32_t det_precision = 25;
+    double* det_x = (double*)malloc((det_precision + 1) * sizeof(double));
+    double* det_y = (double*)malloc((det_precision + 1) * sizeof(double));
+
+    generate_deterministic_SIR(det_x, det_y, det_precision, context);
+    save_data(det_x, det_y, det_precision, "det_mark_SIR_pop");
+    free(det_x);
+    free(det_y);
+    return 0;
 }
 
 int main(void)
@@ -302,34 +502,17 @@ int main(void)
     context.initial_susceptibles = 49;
     context.initial_infectives = 1;
 
-    bin_t* bins = (bin_t*)malloc(context.time_range * sizeof(bin_t));
-    bin_array_t bin_array;
-    bin_array.size = context.time_range;
-    bin_array.array = bins;
+    mpf_init(context.infection_rate);
+    mpf_set_d(context.infection_rate, context.infection_rate_d);
+    mpf_init(context.recovery_rate);
+    mpf_set_d(context.recovery_rate, context.recovery_rate_d);
 
-    simulate(bin_array, context);
-/*
-    uint32_t det_precision = 400;
-    bin_t* x_arr = (bin_t*)malloc(det_precision * sizeof(bin_t));
-    bin_array_t x;
-    x.size = det_precision;
-    x.array = x_arr;
-    bin_t* y_arr = (bin_t*)malloc(det_precision * sizeof(bin_t));
-    bin_array_t y;
-    y.size = det_precision;
-    y.array = y_arr;
+    markovian_SIR_age(context);
 
-    generate_deterministic_SIR(x, y, time_range, infection_rate, recovery_rate, initial_infectives, initial_susceptibles);
-*/
-    //print_bin_array(bin_array);
-    save_data(bin_array, context.iterations);
-    make_graph_script();
-    draw_graph();
-    make_hist_script();
-    draw_hist();
+    markovian_SIR_pop(context);
 
-    free(bins);
-    mpz_clear(bin_array.sum);
+    mpf_clear(context.infection_rate);
+    mpf_clear(context.recovery_rate);
 
     clock_t end = clock();
     double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
