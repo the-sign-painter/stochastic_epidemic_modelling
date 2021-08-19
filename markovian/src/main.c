@@ -149,7 +149,7 @@ void markovian_pop(context_t context, mpf_t rand_float, uint8_t mode, markovian_
     frame_array.susceptibles[0] = frame.susceptibles;
     frame_array.infectives[0] = frame.infectives;
     frame_array.removed[0] = frame.removed;
-    for (int i = 0; i < context.time_range; i++)
+    for (int i = 0; i <= context.time_range; i++)
     {
         if (mode == EP_MODEL_MARK_SIR)
         {
@@ -205,7 +205,7 @@ void simulate_markovian_age(bin_array_t bin_array, context_t context, uint8_t mo
     mpf_clear(rand_float);
 }
 
-void simulate_markovian_pop(markovian_frame_array_t cum_frame_array, context_t context, uint8_t mode)
+void simulate_markovian_pop(markovian_avg_frame_array_t avg_frame_array, context_t context, uint8_t mode)
 {
     mpf_t avg_infected;
     mpf_init(avg_infected);
@@ -217,26 +217,26 @@ void simulate_markovian_pop(markovian_frame_array_t cum_frame_array, context_t c
     mpf_init(rand_float);
 
     markovian_frame_array_t frame_array;
-    frame_array.size = cum_frame_array.size;
+    frame_array.size = avg_frame_array.size;
     frame_array.susceptibles = (pop_t*)malloc((frame_array.size+1) * sizeof(pop_t));
     frame_array.infectives = (pop_t*)malloc((frame_array.size+1) * sizeof(pop_t));
     frame_array.removed = (pop_t*)malloc((frame_array.size+1) * sizeof(pop_t));
 
     for (int i = 0; i < frame_array.size; i++)
     {
-        cum_frame_array.susceptibles[i] = 0;
-        cum_frame_array.infectives[i] = 0;
-        cum_frame_array.removed[i] = 0;
+        avg_frame_array.susceptibles[i] = 0;
+        avg_frame_array.infectives[i] = 0;
+        avg_frame_array.removed[i] = 0;
     }
 
     for (int i = 0; i < context.iterations; i++)
     {
         markovian_pop(context, rand_float, mode, frame_array, avg_infected, avg_recovered, prob_infection);
-        for (int j = 0; j < frame_array.size; j++)
+        for (int j = 0; j <= frame_array.size; j++)
         {
-            cum_frame_array.susceptibles[j] = ((double)*cum_frame_array.susceptibles[j] * (double)i + (double)*frame_array.susceptibles) / ((double)i + 1);
-            cum_frame_array.infectives[j] = ((double)*cum_frame_array.infectives[j] * (double)i + (double)*frame_array.infectives) / ((double)i + 1);
-            cum_frame_array.removed[j] = ((double)*cum_frame_array.removed[j] * (double)i + (double)*frame_array.removed) / ((double)i + 1);
+            avg_frame_array.susceptibles[j] += (double)frame_array.susceptibles[j];
+            avg_frame_array.infectives[j] += (double)frame_array.infectives[j];
+            avg_frame_array.removed[j] += (double)frame_array.removed[j];
         }
     }
 
@@ -248,6 +248,14 @@ void simulate_markovian_pop(markovian_frame_array_t cum_frame_array, context_t c
     mpf_clear(avg_recovered);
     mpf_clear(prob_infection);
     mpf_clear(rand_float);
+
+    // TODO: Should probably change to rolling avg, faster.
+    for (int i = 0; i <= avg_frame_array.size; i++)
+    {
+        avg_frame_array.susceptibles[i] = avg_frame_array.susceptibles[i] / (double)context.iterations;
+        avg_frame_array.infectives[i] = avg_frame_array.infectives[i] / (double)context.iterations;
+        avg_frame_array.removed[i] = avg_frame_array.removed[i] / (double)context.iterations;
+    }
 }
 
 void save_data(double* x, double* y, uint64_t size, char* name)
@@ -289,11 +297,11 @@ void save_bin(bin_array_t bin_array, context_t context, char* name)
     free(y);
 }
 
-void save_pop(pop_t* pop, uint16_t size, char* name)
+void save_pop(double* pop, uint16_t size, char* name)
 {
     double* x = (double*)malloc((size+1) * sizeof(double));
     double* y = (double*)malloc((size+1) * sizeof(double));
-    for (int i = 0; i < size; i++)
+    for (int i = 0; i <= size; i++)
     {
         x[i] = (double)i;
         y[i] = (double)pop[i];
@@ -384,7 +392,7 @@ void draw_hist(char* name)
     fclose(gnuplot);
 }
 
-void generate_deterministic_SIR(double* x, double* y, uint64_t size, context_t context)
+void deterministic_pop(double* x, double* y, uint64_t size, context_t context, uint8_t mode)
 {
     // TODO: Make deterministic SIR and SIS
 
@@ -410,10 +418,24 @@ void generate_deterministic_SIR(double* x, double* y, uint64_t size, context_t c
         //  dR = gamma * infected
         //  dI = beta * susceptible * infected - gamma * infected
         x[i] = (double)i * step_size;
-        
-        dS = -context.infection_rate_d * I[i-1] * S[i-1];
-        dR = context.recovery_rate_d * I[i-1];
-        dI = -dS - dR;
+
+        if (mode == EP_MODEL_MARK_SIR)
+        {
+            dS = -context.infection_rate_d * I[i-1] * S[i-1];
+            dR = context.recovery_rate_d * I[i-1];
+            dI = -dS - dR;
+        }
+        else if (mode == EP_MODEL_MARK_SIS)
+        {
+            dS = -context.infection_rate_d * I[i-1] * S[i-1] + context.recovery_rate_d * I[i-1];
+            dR = 0;
+            dI = -dS;
+        }
+        else
+        {
+            printf("Deterministic mode not selected.\n");
+            exit(-1);
+        }
 
         S[i] = S[i-1] + dS;
         I[i] = I[i-1] + dI;
@@ -462,26 +484,53 @@ int markovian_SIS_age(context_t context)
 
 int markovian_SIR_pop(context_t context)
 {
-    markovian_cum_frame_array_t cum_frame_array;
-    cum_frame_array.size = context.time_range;
-    cum_frame_array.susceptibles = (double*)malloc((cum_frame_array.size+1) * sizeof(double));
-    cum_frame_array.infectives = (double*)malloc((cum_frame_array.size+1) * sizeof(double));
-    cum_frame_array.removed = (double*)malloc((cum_frame_array.size+1) * sizeof(double));
+    markovian_avg_frame_array_t avg_frame_array;
+    avg_frame_array.size = context.time_range;
+    avg_frame_array.susceptibles = (double*)malloc((avg_frame_array.size+1) * sizeof(double));
+    avg_frame_array.infectives   = (double*)malloc((avg_frame_array.size+1) * sizeof(double));
+    avg_frame_array.removed      = (double*)malloc((avg_frame_array.size+1) * sizeof(double));
 
-    simulate_markovian_pop(cum_frame_array, context, EP_MODEL_MARK_SIR);
+    simulate_markovian_pop(avg_frame_array, context, EP_MODEL_MARK_SIR);
 
-    save_pop(cum_frame_array.infectives, cum_frame_array.size, "stoch_mark_SIR_pop");
+    save_pop(avg_frame_array.infectives, avg_frame_array.size, "stoch_mark_SIR_pop");
 
-    free(cum_frame_array.susceptibles);
-    free(cum_frame_array.infectives);
-    free(cum_frame_array.removed);
+    free(avg_frame_array.susceptibles);
+    free(avg_frame_array.infectives);
+    free(avg_frame_array.removed);
 
     uint32_t det_precision = 25;
     double* det_x = (double*)malloc((det_precision + 1) * sizeof(double));
     double* det_y = (double*)malloc((det_precision + 1) * sizeof(double));
 
-    generate_deterministic_SIR(det_x, det_y, det_precision, context);
+    deterministic_pop(det_x, det_y, det_precision, context, EP_MODEL_MARK_SIR);
     save_data(det_x, det_y, det_precision, "det_mark_SIR_pop");
+    free(det_x);
+    free(det_y);
+    return 0;
+}
+
+int markovian_SIS_pop(context_t context)
+{
+    markovian_avg_frame_array_t avg_frame_array;
+    avg_frame_array.size = context.time_range;
+    avg_frame_array.susceptibles = (double*)malloc((avg_frame_array.size+1) * sizeof(double));
+    avg_frame_array.infectives   = (double*)malloc((avg_frame_array.size+1) * sizeof(double));
+    avg_frame_array.removed      = (double*)malloc((avg_frame_array.size+1) * sizeof(double));
+
+    simulate_markovian_pop(avg_frame_array, context, EP_MODEL_MARK_SIS);
+
+    save_pop(avg_frame_array.infectives, avg_frame_array.size, "stoch_mark_SIS_pop");
+
+    free(avg_frame_array.susceptibles);
+    free(avg_frame_array.infectives);
+    free(avg_frame_array.removed);
+
+    uint32_t det_precision = 25;
+    double* det_x = (double*)malloc((det_precision + 1) * sizeof(double));
+    double* det_y = (double*)malloc((det_precision + 1) * sizeof(double));
+
+    deterministic_pop(det_x, det_y, det_precision, context, EP_MODEL_MARK_SIS);
+    save_data(det_x, det_y, det_precision, "det_mark_SIS_pop");
     free(det_x);
     free(det_y);
     return 0;
@@ -494,12 +543,12 @@ int main(void)
 
     context_t context;
 
-    context.time_range = 100;
-    context.iterations = 10000;
+    context.time_range = 1000;
+    context.iterations = 100;
 
     context.infection_rate_d = 0.01;
     context.recovery_rate_d = 0.1;
-    context.initial_susceptibles = 49;
+    context.initial_susceptibles = 149;
     context.initial_infectives = 1;
 
     mpf_init(context.infection_rate);
@@ -507,9 +556,9 @@ int main(void)
     mpf_init(context.recovery_rate);
     mpf_set_d(context.recovery_rate, context.recovery_rate_d);
 
-    markovian_SIR_age(context);
+    markovian_SIS_age(context);
 
-    markovian_SIR_pop(context);
+    markovian_SIS_pop(context);
 
     mpf_clear(context.infection_rate);
     mpf_clear(context.recovery_rate);
