@@ -7,7 +7,9 @@
 
 typedef uint16_t bin_t;
 
+
 typedef uint16_t timestep_t;
+
 
 typedef struct
 {
@@ -15,6 +17,7 @@ typedef struct
     uint8_t infectives;
     uint8_t removed;
 } markovian_frame_t;
+
 
 typedef struct
 {
@@ -30,6 +33,7 @@ uint16_t generate_random_integer(uint16_t start, uint16_t end)
     return rand_int;
 }
 
+
 void generate_random_mpf(mpf_t rand_float)
 {
     uint64_t step = 10000;
@@ -38,6 +42,7 @@ void generate_random_mpf(mpf_t rand_float)
     mpf_ui_div(rand_float, 1, rand_float);
     mpf_mul_ui(rand_float, rand_float, rand_int);
 }
+
 
 markovian_frame_t markovian_SIR_timestep(markovian_frame_t frame, mpf_t infection_rate, mpf_t recovery_rate, mpf_t avg_infected, mpf_t avg_recovered, mpf_t prob_infection, mpf_t rand_float)
 {
@@ -60,6 +65,7 @@ markovian_frame_t markovian_SIR_timestep(markovian_frame_t frame, mpf_t infectio
     return frame;
 }
 
+
 markovian_frame_t markovian_SIS_timestep(markovian_frame_t frame, mpf_t infection_rate, mpf_t recovery_rate, mpf_t avg_infected, mpf_t avg_recovered, mpf_t prob_infection, mpf_t rand_float)
 {
     mpf_mul_ui(avg_infected, infection_rate, frame.susceptibles);
@@ -80,6 +86,7 @@ markovian_frame_t markovian_SIS_timestep(markovian_frame_t frame, mpf_t infectio
     }
     return frame;
 }
+
 
 timestep_t simulate_markovian(mpf_t infection_rate, mpf_t recovery_rate, uint8_t initial_susceptibles, uint8_t initial_infectives, mpf_t rand_float)
 {
@@ -111,6 +118,7 @@ timestep_t simulate_markovian(mpf_t infection_rate, mpf_t recovery_rate, uint8_t
     return timestep;
 }
 
+
 void simulate(bin_array_t bin_array, uint64_t iterations, double infection_rate_d, double recovery_rate_d, uint8_t initial_susceptibles, uint8_t initial_infectives)
 {
     mpf_t infection_rate;
@@ -141,6 +149,7 @@ void simulate(bin_array_t bin_array, uint64_t iterations, double infection_rate_
     mpf_clear(recovery_rate);
 }
 
+
 void print_bin_array(bin_array_t bin_array)
 {
     for (int i = 0; i < bin_array.size; i++)
@@ -148,6 +157,7 @@ void print_bin_array(bin_array_t bin_array)
         printf("%u: %u\n", i, bin_array.array[i]);
     }
 }
+
 
 void save_data(bin_array_t bin_array, uint64_t iterations)
 {
@@ -174,6 +184,7 @@ void save_data(bin_array_t bin_array, uint64_t iterations)
     fclose(fp);
 }
 
+
 void make_graph_script(void)
 {
     FILE *fp = fopen("output/plot_graph.p", "w");
@@ -193,6 +204,7 @@ void make_graph_script(void)
     fprintf(fp, "plot \"%s\"\n", data_path);
     fclose(fp);
 }
+
 
 void make_hist_script(void)
 {
@@ -225,17 +237,20 @@ void make_hist_script(void)
     fprintf(fp, "plot \"%s\" using (hist($2,width)):(1.0) smooth freq with boxes lc rgb\"green\"\n", data_path);
 }
 
+
 void draw_graph(void)
 {
     FILE *gnuplot = popen("gnuplot output/plot_graph.p", "r");
     fflush(gnuplot);
 }
 
+
 void draw_hist(void)
 {
     FILE* gnuplot = popen("gnuplot output/plot_histogram.p", "r");
     fflush(gnuplot);
 }
+
 
 void generate_deterministic_SIR(bin_array_t x, bin_array_t y, uint64_t time_range, mpf_t infection_rate, mpf_t recovery_rate, uint8_t initial_susceptibles, uint8_t initial_infectives)
 {
@@ -263,6 +278,7 @@ void generate_deterministic_SIR(bin_array_t x, bin_array_t y, uint64_t time_rang
     }
     mpf_clear(dI);
 }
+
 
 int main(void)
 {
