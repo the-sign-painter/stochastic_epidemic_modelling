@@ -10,9 +10,10 @@ GIT_COMMIT := $(shell git log -n 1 --format="%h-%f")
 #Compiler options
 CFLAGS		= -Os -g -c -std=gnu11 `pkg-config --cflags --libs gtk+-3.0`
 CFLAGS		+= -Wall -Wextra -Werror -fms-extensions -Wno-unused-parameter -Wno-address-of-packed-member
+CFLAGS		+= -pedantic
 CFLAGS		+= -DGIT_VERSION=\"[$(GIT_COMMITS)]-$(GIT_COMMIT)\" -DGIT_SHA1=\"$(GIT_SHA1)\"
 
-LINK_FLAGS =  -lgmp -lm `pkg-config --cflags --libs gtk+-3.0`
+LINK_FLAGS =  -lgmp -lm `pkg-config --cflags --libs gtk+-3.0` -ggdb3
 LINK_FLAGS += -Wl,--start-group -lc -lgcc -Wl,--end-group -Wl,--gc-sections
 
 INCLUDE_PATHS += -Iinclude
@@ -49,6 +50,9 @@ $(WHOLE_EXE): $(OBJECTS)
 clean:
 	rm -rf $(BUILD_DIR)
 	rm -rf output
+
+valgrind:
+	valgrind $(WHOLE_EXE) --leak-check=full
 
 cppcheck:
 	cppcheck --enable=all --std=c99 *.[ch]

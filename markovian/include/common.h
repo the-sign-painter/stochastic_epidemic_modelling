@@ -2,14 +2,25 @@
 
 #include <stdint.h>
 
-#include "modelling.h"
+
+#define MAX_NUM_BINS        1000
+
+
+typedef uint16_t bin_t;
+typedef uint16_t timestep_t;
+
+
+typedef struct
+{
+    uint8_t size;
+    bin_t array[MAX_NUM_BINS];
+} bin_array_t;
 
 
 typedef struct
 {
     bin_array_t bins;
     uint64_t iterations;
-    uint16_t time_range;
     double infection_rate;
     double recovery_rate;
     uint16_t initial_susceptibles;

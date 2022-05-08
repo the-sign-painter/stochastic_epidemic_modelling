@@ -108,28 +108,28 @@ static timestep_t simulate_markovian(mpf_t infection_rate, mpf_t recovery_rate, 
 }
 
 
-void simulate(bin_array_t bin_array, uint64_t iterations, double infection_rate_d, double recovery_rate_d, uint8_t initial_susceptibles, uint8_t initial_infectives)
+void simulate(context_t* context)
 {
     mpf_t infection_rate;
     mpf_init(infection_rate);
-    mpf_set_d(infection_rate, infection_rate_d);
+    mpf_set_d(infection_rate, context->infection_rate);
     mpf_t recovery_rate;
     mpf_init(recovery_rate);
-    mpf_set_d(recovery_rate, recovery_rate_d);
+    mpf_set_d(recovery_rate, context->recovery_rate);
 
-    for (int i = 0; i < bin_array.size; i++)
+    for (int i = 0; i < context->bins.size; i++)
     {
-        bin_array.array[i] = 0;
+        context->bins.array[i] = 0;
     }
     mpf_t rand_float;
     mpf_init(rand_float);
 
-    for (uint64_t i = 0; i < iterations; i++)
+    for (uint64_t i = 0; i < context->iterations; i++)
     {
-        timestep_t age = simulate_markovian(infection_rate, recovery_rate, initial_susceptibles, initial_infectives, rand_float);
-        if (bin_array.size > age)
+        timestep_t age = simulate_markovian(infection_rate, recovery_rate, context->initial_susceptibles, context->initial_infectives, rand_float);
+        if (context->bins.size > age)
         {
-            bin_array.array[age] += 1;
+            context->bins.array[age] += 1;
         }
     }
     

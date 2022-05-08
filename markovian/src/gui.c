@@ -6,6 +6,8 @@
 
 
 #include "gui.h"
+#include "modelling.h"
+#include "data.h"
 
 
 static gint initial_susceptibles_cb(GtkSpinButton *spin_button, context_t* context)
@@ -45,7 +47,7 @@ static gint recovery_rate_cb(GtkSpinButton *spin_button, context_t* context)
 
 static gint time_range_cb(GtkSpinButton *spin_button, context_t* context)
 {
-    context->time_range = gtk_spin_button_get_value_as_int(spin_button);
+    context->bins.size = gtk_spin_button_get_value_as_int(spin_button);
     return TRUE;
 }
 
@@ -59,13 +61,21 @@ static gint num_iterations_cb(GtkSpinButton *spin_button, context_t* context)
 
 static gint simulate_cb(GtkSpinButton *spin_button, context_t* context)
 {
-    printf("initial_susceptibles = %"PRIu16"\n", context->initial_susceptibles);
-    printf("initial_infectives = %"PRIu16"\n", context->initial_infectives);
-    printf("initial_removed = %"PRIu16"\n", context->initial_removed);
-    printf("infection_rate = %lf\n", context->infection_rate);
-    printf("recovery_rate = %lf\n", context->recovery_rate);
-    printf("time_range = %"PRIu16"\n", context->time_range);
-    printf("iterations = %"PRIu64"\n", context->iterations);
+    clock_t begin = clock();
+    srand(time(NULL));
+
+    simulate(context);
+
+    //print_bin_array(bin_array);
+    save_data(context->bins, context->iterations);
+    make_graph_script();
+    draw_graph();
+    make_hist_script();
+    draw_hist();
+
+    clock_t end = clock();
+    double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+    printf("Time spent: %f seconds\n", time_spent);
     return TRUE;
 }
 
