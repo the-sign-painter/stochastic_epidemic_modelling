@@ -18,7 +18,8 @@ LINK_FLAGS += -Wl,--start-group -lc -lgcc -Wl,--end-group -Wl,--gc-sections
 INCLUDE_PATHS += -Iinclude
 
 SOURCES :=	src/main.c			\
-			src/modelling.c
+			src/modelling.c		\
+			src/data.c
 
 BUILD_DIR := build
 
