@@ -11,14 +11,6 @@ typedef uint16_t timestep_t;
 
 typedef struct
 {
-    uint8_t susceptibles;
-    uint8_t infectives;
-    uint8_t removed;
-} markovian_frame_t;
-
-
-typedef struct
-{
     uint8_t size;
     bin_t* array;
     mpz_t sum;

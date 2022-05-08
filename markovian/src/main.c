@@ -4,13 +4,28 @@
 #include <time.h>
 #include <gmp.h>
 
+#include "common.h"
 #include "modelling.h"
 #include "data.h"
+#include "gui.h"
 
 
+static context_t context = {.bins={0},
+                            .iterations=1000,
+                            .time_range=100,
+                            .infection_rate=0.01,
+                            .recovery_rate=0.1,
+                            .initial_susceptibles=99,
+                            .initial_infectives=1,
+                            .initial_removed=0,
+                           };
 
-int main(void)
+
+int main(int argc, char **argv)
 {
+    gui_init(&context, &argc, &argv);
+
+
     clock_t begin = clock();
     srand(time(NULL));
 

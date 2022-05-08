@@ -8,6 +8,14 @@
 #include "modelling.h"
 
 
+typedef struct
+{
+    uint8_t susceptibles;
+    uint8_t infectives;
+    uint8_t removed;
+} markovian_frame_t;
+
+
 static uint16_t generate_random_integer(uint16_t start, uint16_t end)
 {
     uint16_t rand_int = rand() % (end + 1 - start) + start;
