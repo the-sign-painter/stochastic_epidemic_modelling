@@ -13,7 +13,7 @@ typedef uint16_t timestep_t;
 
 typedef struct
 {
-    uint8_t size;
+    uint16_t size;
     bin_t array[MAX_NUM_BINS];
 } bin_array_t;
 

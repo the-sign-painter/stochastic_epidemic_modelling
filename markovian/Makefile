@@ -21,7 +21,8 @@ INCLUDE_PATHS += -Iinclude
 SOURCES :=	src/main.c			\
 			src/modelling.c		\
 			src/data.c			\
-			src/gui.c
+			src/gui.c			\
+			src/graph.c
 
 BUILD_DIR := build
 

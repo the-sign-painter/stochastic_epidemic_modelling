@@ -7,6 +7,7 @@
 
 
 #include "gui.h"
+#include "graph.h"
 #include "modelling.h"
 #include "data.h"
 
@@ -67,6 +68,8 @@ static gboolean simulate_cb(GtkSpinButton *spin_button, context_t* context)
 
     simulate(context);
 
+    set_points(context->bins);
+
     //print_bin_array(bin_array);
     save_data(context->bins, context->iterations);
     make_graph_script();
@@ -79,83 +82,6 @@ static gboolean simulate_cb(GtkSpinButton *spin_button, context_t* context)
     printf("Time spent: %f seconds\n", time_spent);
 
     gtk_image_new_from_file(DATA_DIR"/graph.png");
-    return TRUE;
-}
-
-
-gfloat f (gfloat x)
-{
-    return 0.03 * pow (x, 3);
-}
-
-
-#define XMARGIN             60
-#define YMARGIN             60
-#define XINTERVAL_SIZE      30
-#define YINTERVAL_SIZE      30
-
-
-static gboolean draw_cb(GtkWidget *widget, cairo_t *cr, gpointer user_data)
-{
-    GdkRectangle da;            /* GtkDrawingArea size */
-    gdouble dx = 1.0, dy = 1.0; /* Pixels between each point */
-    gdouble clip_x1 = 0.0, clip_y1 = 0.0, clip_x2 = 10.0, clip_y2 = 10.0;
-    GdkWindow *window = gtk_widget_get_window(widget);
-
-    /* Determine GtkDrawingArea dimensions */
-    gdk_window_get_geometry (window,
-            &da.x,
-            &da.y,
-            &da.width,
-            &da.height);
-
-    /* Draw on a black background */
-    cairo_set_source_rgb (cr, 1.0, 1.0, 1.0);
-    cairo_paint (cr);
-
-    /* Change the transformation matrix */
-    cairo_translate (cr, YMARGIN, da.height - XMARGIN);
-    cairo_scale (cr, 1., 1.);
-
-    /* Determine the data points to calculate (ie. those in the clipping zone */
-    cairo_device_to_user_distance (cr, &dx, &dy);
-    cairo_clip_extents (cr, &clip_x1, &clip_y1, &clip_x2, &clip_y2);
-    cairo_set_line_width (cr, dx);
-
-    /* Draws x and y axis */
-    cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
-    cairo_move_to (cr, clip_x1, 0.0);
-    cairo_line_to (cr, clip_x2, 0.0);
-    cairo_move_to (cr, 0.0, clip_y1);
-    cairo_line_to (cr, 0.0, clip_y2);
-    cairo_stroke (cr);
-
-    /* Writing in the foreground */
-    cairo_set_font_size (cr, 15);
-    // cairo_select_font_face (cr, "Georgia", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
-    cairo_set_source_rgb (cr, 0, 0, 0);
-
-    for (int i = 0; i < da.width / XINTERVAL_SIZE; i++)
-    {
-        cairo_move_to(cr, i * XINTERVAL_SIZE , 0);
-        cairo_line_to(cr, i * XINTERVAL_SIZE , XMARGIN/3.);
-        cairo_move_to(cr, i * XINTERVAL_SIZE , XMARGIN/1.5);
-        char label[10];
-        snprintf(label, 10, "%d", i);
-        cairo_show_text(cr, label);
-    }
-
-    for (int j = 0; j < da.height / YINTERVAL_SIZE; j++)
-    {
-        cairo_move_to(cr, 0,            -j * YINTERVAL_SIZE);
-        cairo_line_to(cr, -YMARGIN/3.,  -j * YINTERVAL_SIZE);
-        cairo_move_to(cr, -YMARGIN/1.5, -j * YINTERVAL_SIZE);
-        char label[10];
-        snprintf(label, 10, "%d", j);
-        cairo_show_text(cr, label);
-    }
-    cairo_stroke (cr);
-
     return TRUE;
 }
 
