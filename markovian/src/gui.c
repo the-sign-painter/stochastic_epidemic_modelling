@@ -71,11 +71,11 @@ static gboolean simulate_cb(GtkSpinButton *spin_button, context_t* context)
     set_points(context->bins);
 
     //print_bin_array(bin_array);
-    save_data(context->bins, context->iterations);
-    make_graph_script();
-    draw_graph();
-    make_hist_script();
-    draw_hist();
+    data_save_data(context->bins, context->iterations);
+    data_make_graph_script();
+    data_draw_graph();
+    data_make_hist_script();
+    data_draw_hist();
 
     clock_t end = clock();
     double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
