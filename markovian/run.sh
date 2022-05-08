@@ -11,7 +11,7 @@ OUTDIR="${ABSDIR}/output"
 
 mkdir -p ${OUTDIR}
 
-gcc ${CLIBS} ${SRCDIR}/main.c ${CFLAGS} -o ${OUTDIR}/main
+gcc ${SRCDIR}/main.c ${CFLAGS} ${CLIBS} -o ${OUTDIR}/main
 
 if [[ $? -ne 0 ]]; then
     echo "Failed to compile"
@@ -20,5 +20,5 @@ fi
 
 echo "Compiled successfully"
 ./output/main
-sleep 0.5
-viu ./output/graph.png
+# sleep 0.5
+# viu ./output/graph.png
