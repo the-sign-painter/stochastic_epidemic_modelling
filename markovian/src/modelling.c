@@ -13,7 +13,7 @@ typedef struct
     uint8_t susceptibles;
     uint8_t infectives;
     uint8_t removed;
-} markovian_frame_t;
+} modelling_markovian_frame_t;
 
 
 static uint16_t _modelling_generate_random_integer(uint16_t start, uint16_t end)
@@ -33,7 +33,7 @@ static void _modelling_generate_random_mpf(mpf_t rand_float)
 }
 
 
-static markovian_frame_t _modelling_markovian_SIR_timestep(markovian_frame_t frame, mpf_t infection_rate, mpf_t recovery_rate, mpf_t avg_infected, mpf_t avg_recovered, mpf_t prob_infection, mpf_t rand_float)
+static modelling_markovian_frame_t _modelling_markovian_SIR_timestep(modelling_markovian_frame_t frame, mpf_t infection_rate, mpf_t recovery_rate, mpf_t avg_infected, mpf_t avg_recovered, mpf_t prob_infection, mpf_t rand_float)
 {
     mpf_mul_ui(avg_infected, infection_rate, frame.susceptibles);
     mpf_mul_ui(avg_recovered, recovery_rate, frame.infectives);
@@ -55,7 +55,7 @@ static markovian_frame_t _modelling_markovian_SIR_timestep(markovian_frame_t fra
 }
 
 
-markovian_frame_t _modelling_markovian_SIS_timestep(markovian_frame_t frame, mpf_t infection_rate, mpf_t recovery_rate, mpf_t avg_infected, mpf_t avg_recovered, mpf_t prob_infection, mpf_t rand_float)
+modelling_markovian_frame_t _modelling_markovian_SIS_timestep(modelling_markovian_frame_t frame, mpf_t infection_rate, mpf_t recovery_rate, mpf_t avg_infected, mpf_t avg_recovered, mpf_t prob_infection, mpf_t rand_float)
 {
     mpf_mul_ui(avg_infected, infection_rate, frame.susceptibles);
     mpf_mul_ui(avg_recovered, recovery_rate, frame.infectives);
@@ -79,7 +79,7 @@ markovian_frame_t _modelling_markovian_SIS_timestep(markovian_frame_t frame, mpf
 
 static timestep_t _modelling_simulate_markovian(mpf_t infection_rate, mpf_t recovery_rate, uint8_t initial_susceptibles, uint8_t initial_infectives, mpf_t rand_float)
 {
-    markovian_frame_t frame;
+    modelling_markovian_frame_t frame;
     frame.susceptibles = initial_susceptibles;
     frame.infectives = initial_infectives;
     frame.removed = 0;

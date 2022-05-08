@@ -22,11 +22,17 @@ typedef struct
 {
     float x;
     float y;
-} datapoint_t;
+} graph_datapoint_t;
 
 
-static datapoint_t datapoints[GRAPH_MAX_DATAPOINTS] = {0};
-static uint16_t num_datapoints = 0;
+typedef struct
+{
+    graph_datapoint_t   datapoints[GRAPH_MAX_DATAPOINTS];
+    uint16_t            size;
+} graph_point_array_t;
+
+
+static graph_point_array_t _graph_point_array = {0};
 
 
 gboolean graph_draw_cb(GtkWidget *widget, cairo_t *cr, gpointer user_data)
@@ -120,9 +126,9 @@ gboolean graph_draw_cb(GtkWidget *widget, cairo_t *cr, gpointer user_data)
     }
     cairo_stroke (cr);
 
-    for (unsigned k = 0; k < num_datapoints; k++)
+    for (unsigned k = 0; k < _graph_point_array.size; k++)
     {
-        datapoint_t* d = &datapoints[k];
+        graph_datapoint_t* d = &_graph_point_array.datapoints[k];
         cairo_move_to(cr, GRAPH_XINTERVAL_SIZE*d->x, -GRAPH_YINTERVAL_SIZE*d->y);
         cairo_arc(cr, GRAPH_XINTERVAL_SIZE*d->x, -GRAPH_YINTERVAL_SIZE*d->y, GRAPH_POINTRADIUS, 0, 2 * M_PI);
         cairo_fill (cr);
@@ -138,11 +144,11 @@ gboolean graph_set_points(bin_array_t bins)
 {
     if (bins.size > GRAPH_MAX_DATAPOINTS)
         return FALSE;
-    num_datapoints = bins.size;
+    _graph_point_array.size = bins.size;
     for (unsigned i = 0; i < bins.size; i++)
     {
-        datapoints[i].x = i;
-        datapoints[i].y = bins.array[i];
+        _graph_point_array.datapoints[i].x = i;
+        _graph_point_array.datapoints[i].y = bins.array[i];
     }
     return TRUE;
 }
