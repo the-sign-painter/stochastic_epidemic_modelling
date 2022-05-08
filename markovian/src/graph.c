@@ -16,6 +16,8 @@
 #define GRAPH_YLARGETICKS         5
 #define GRAPH_POINTRADIUS         3
 #define GRAPH_MAX_DATAPOINTS      1000
+#define GRAPH_XMIN_INTERVAL_SIZE  25
+#define GRAPH_YMIN_INTERVAL_SIZE  20
 
 
 typedef struct
@@ -74,6 +76,20 @@ gboolean graph_draw_cb(GtkWidget *widget, cairo_t *cr, gpointer user_data)
     cairo_line_to (cr, 0.0, clip_y2);
     cairo_stroke (cr);
 
+    float maxx, maxy, xinterval, yinterval;
+    {
+        float minx = _graph_point_array.xlower - 1;
+        maxx = _graph_point_array.xupper + 1;
+        float xrange = maxx - minx;
+        xinterval = (da.width - GRAPH_XMARGIN) / xrange;
+    }
+    {
+        float miny = _graph_point_array.ylower - 1;
+        maxy = _graph_point_array.yupper + 1;
+        float yrange = maxy - miny;
+        yinterval = (da.height - GRAPH_YMARGIN) / yrange;
+    }
+
     /* Writing in the foreground */
     cairo_set_font_size (cr, 15);
     // cairo_select_font_face (cr, "Georgia", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
@@ -89,43 +105,65 @@ gboolean graph_draw_cb(GtkWidget *widget, cairo_t *cr, gpointer user_data)
     cairo_text_extents(cr, label, &te);
     cairo_show_text(cr, label);
 
-    for (int i = -GRAPH_XMARGIN/GRAPH_XINTERVAL_SIZE; i < (da.width / GRAPH_XINTERVAL_SIZE) - GRAPH_XMARGIN/GRAPH_XINTERVAL_SIZE + 2; i++)
+    int xinterval_div;
+    if (xinterval > GRAPH_XMIN_INTERVAL_SIZE)
+        xinterval_div = 1;
+    else if (xinterval * 2 > GRAPH_XMIN_INTERVAL_SIZE)
+        xinterval_div = 2;
+    else
+    {
+        xinterval_div = 5;
+        while (xinterval * xinterval_div < GRAPH_XMIN_INTERVAL_SIZE)
+            xinterval_div += 5;
+    }
+    for (int i = 0; i <= maxx + 2; i += xinterval_div)
     {
         if (!i)
             continue;
-        cairo_move_to(cr, i * GRAPH_XINTERVAL_SIZE , 0);
+        cairo_move_to(cr, i * xinterval , 0);
         float ticklen = GRAPH_XMARGIN/4.5;
-        if (i % GRAPH_XLARGETICKS == 0)
+        if ((i/xinterval_div) % GRAPH_XLARGETICKS == 0)
             ticklen *= 1.5;
-        cairo_line_to(cr, i * GRAPH_XINTERVAL_SIZE , ticklen);
+        cairo_line_to(cr, i * xinterval , ticklen);
         if (i < 0)
             continue;
-        char label[10];
-        snprintf(label, 10, "%d", i);
+        char label[11];
+        snprintf(label, 11, "%d", i);
         cairo_text_extents(cr, label, &te);
         cairo_move_to(cr,
-                      i * GRAPH_XINTERVAL_SIZE - te.x_bearing - te.width / 2,
+                      i * xinterval - te.x_bearing - te.width / 2,
                       GRAPH_XMARGIN/1.5        - fe.descent  + fe.height / 2);
         cairo_show_text(cr, label);
     }
 
-    for (int j = -GRAPH_YMARGIN/GRAPH_YINTERVAL_SIZE; j < (da.height / GRAPH_YINTERVAL_SIZE) - GRAPH_YMARGIN/GRAPH_YINTERVAL_SIZE + 2; j++)
+    float yinterval_div;
+    if (yinterval > GRAPH_YMIN_INTERVAL_SIZE)
+        yinterval_div = 1;
+    else if (yinterval * 2 > GRAPH_YMIN_INTERVAL_SIZE)
+        yinterval_div = 2;
+    else
+    {
+        yinterval_div = 5;
+        while (yinterval * yinterval_div < GRAPH_YMIN_INTERVAL_SIZE)
+            yinterval_div += 5;
+    }
+    for (int j = 0; j <= maxy + 2; j += yinterval_div)
     {
         if (!j)
             continue;
-        cairo_move_to(cr, 0,            -j * GRAPH_YINTERVAL_SIZE);
+        cairo_move_to(cr, 0,            -j * yinterval);
         float ticklen = GRAPH_YMARGIN/4.5;
-        if (j % GRAPH_YLARGETICKS == 0)
+        if ((int)(j/yinterval_div) % GRAPH_YLARGETICKS == 0)
             ticklen *= 1.5;
-        cairo_line_to(cr, -ticklen,     -j * GRAPH_YINTERVAL_SIZE);
+        cairo_line_to(cr, -ticklen,     -j * yinterval);
         if (j < 0)
             continue;
-        char label[10];
-        snprintf(label, 10, "%d", j);
+        char label[11];
+        snprintf(label, 11, "%d", j);
         cairo_text_extents(cr, label, &te);
         cairo_move_to(cr,
-                      -GRAPH_YMARGIN/1.5        - te.x_bearing - te.width / 2,
-                      -j * GRAPH_YINTERVAL_SIZE - fe.descent  + fe.height / 2);
+                      -GRAPH_YMARGIN/1.5    - te.x_bearing - te.width / 2,
+                      -j * yinterval        - fe.descent  + fe.height / 2);
         cairo_show_text(cr, label);
     }
     cairo_stroke (cr);
@@ -133,8 +171,8 @@ gboolean graph_draw_cb(GtkWidget *widget, cairo_t *cr, gpointer user_data)
     for (unsigned k = 0; k < _graph_point_array.size; k++)
     {
         graph_datapoint_t* d = &_graph_point_array.datapoints[k];
-        cairo_move_to(cr, GRAPH_XINTERVAL_SIZE*d->x, -GRAPH_YINTERVAL_SIZE*d->y);
-        cairo_arc(cr, GRAPH_XINTERVAL_SIZE*d->x, -GRAPH_YINTERVAL_SIZE*d->y, GRAPH_POINTRADIUS, 0, 2 * M_PI);
+        cairo_move_to(cr, xinterval*d->x, -yinterval*d->y);
+        cairo_arc(cr, xinterval*d->x, -yinterval*d->y, GRAPH_POINTRADIUS, 0, 2 * M_PI);
         cairo_fill (cr);
     }
 
