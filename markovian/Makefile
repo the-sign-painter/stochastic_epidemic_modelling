@@ -38,18 +38,15 @@ $(BUILD_DIR)/.git.$(GIT_COMMIT):
 
 $(OBJECTS): $(BUILD_DIR)%.o: .%.c
 	mkdir -p `dirname $@`
-	echo $(OBJECTS)
-	echo $(DEPS)
-	echo "hack 0"
 	$(CC) $(CFLAGS) $(INCLUDE_PATHS) $< -o $@
 
 
 $(WHOLE_EXE): $(OBJECTS)
-	echo "hack 1"
 	$(CC) $(OBJECTS) $(LINK_FLAGS) -o $(WHOLE_EXE)
 
 clean:
 	rm -rf $(BUILD_DIR)
+	rm -rf output
 
 cppcheck:
 	cppcheck --enable=all --std=c99 *.[ch]
