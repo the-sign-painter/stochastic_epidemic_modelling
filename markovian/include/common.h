@@ -4,6 +4,7 @@
 
 
 #define MAX_NUM_BINS        1000
+#define DATA_DIR            "output"
 
 
 typedef uint16_t bin_t;

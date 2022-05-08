@@ -8,13 +8,10 @@
 #include "data.h"
 
 
-#define OUTPUT_DIR      "output"
-
-
-static void create_output_dir(void)
+static void create_DATA_DIR(void)
 {
     errno = 0;
-    int ret = mkdir(OUTPUT_DIR, S_IRWXU);
+    int ret = mkdir(DATA_DIR, S_IRWXU);
     if (ret == -1) {
         switch (errno) {
             case EACCES :
@@ -41,8 +38,8 @@ void print_bin_array(bin_array_t bin_array)
 
 void save_data(bin_array_t bin_array, uint64_t iterations)
 {
-    create_output_dir();
-    FILE* fp = fopen(OUTPUT_DIR"/data", "w");
+    create_DATA_DIR();
+    FILE* fp = fopen(DATA_DIR"/data", "w");
     if (fp == NULL)
     {
         printf("Cannot open data file.\n");
@@ -68,18 +65,18 @@ void save_data(bin_array_t bin_array, uint64_t iterations)
 
 void make_graph_script(void)
 {
-    create_output_dir();
-    FILE *fp = fopen(OUTPUT_DIR"/plot_graph.p", "w");
+    create_DATA_DIR();
+    FILE *fp = fopen(DATA_DIR"/plot_graph.p", "w");
     if (fp == NULL)
     {
         printf("Failed to create plot_graph.p file.\n");
         exit(-1);
     }
     char* project_path = realpath(".", NULL);
-    char* data_path = realpath(OUTPUT_DIR"/data", NULL);
+    char* data_path = realpath(DATA_DIR"/data", NULL);
     fprintf(fp, "reset\n");
     fprintf(fp, "set terminal png size 500,500\n");
-    fprintf(fp, "set output \"%s/"OUTPUT_DIR"/graph.png\"\n", project_path);
+    fprintf(fp, "set output \"%s/"DATA_DIR"/graph.png\"\n", project_path);
     fprintf(fp, "set title \"Markovian SIR Model Time Period\"\n");
     fprintf(fp, "set xlabel \"Time\"\n");
     fprintf(fp, "set ylabel \"Frequency\"\n");
@@ -90,15 +87,15 @@ void make_graph_script(void)
 
 void make_hist_script(void)
 {
-    create_output_dir();
-    FILE *fp = fopen(OUTPUT_DIR"/plot_histogram.p", "w");
+    create_DATA_DIR();
+    FILE *fp = fopen(DATA_DIR"/plot_histogram.p", "w");
     if (fp == NULL)
     {
         printf("Failed to create plot_histogram.p file.\n");
         exit(-1);
     }
     char* project_path = realpath(".", NULL);
-    char* data_path = realpath(OUTPUT_DIR"/data", NULL);
+    char* data_path = realpath(DATA_DIR"/data", NULL);
     fprintf(fp, "reset\n");
     fprintf(fp, "n=100\n");
     fprintf(fp, "max=100\n");
@@ -106,7 +103,7 @@ void make_hist_script(void)
     fprintf(fp, "width=(max-min)/n\n");
     fprintf(fp, "hist(x,width)=width*floor(x/width)+width/2.0\n");
     fprintf(fp, "set terminal png size 500,500\n");
-    fprintf(fp, "set output \"%s/"OUTPUT_DIR"/hist.png\"\n", project_path);
+    fprintf(fp, "set output \"%s/"DATA_DIR"/hist.png\"\n", project_path);
     fprintf(fp, "set xrange [min:max]\n");
     fprintf(fp, "set yrange[0:]\n");
     fprintf(fp, "set offset graph 0.05,0.05,0.05,0.0\n");
@@ -123,13 +120,13 @@ void make_hist_script(void)
 
 void draw_graph(void)
 {
-    FILE *gnuplot = popen("gnuplot "OUTPUT_DIR"/plot_graph.p", "r");
+    FILE *gnuplot = popen("gnuplot "DATA_DIR"/plot_graph.p", "r");
     fflush(gnuplot);
 }
 
 
 void draw_hist(void)
 {
-    FILE* gnuplot = popen("gnuplot "OUTPUT_DIR"/plot_histogram.p", "r");
+    FILE* gnuplot = popen("gnuplot "DATA_DIR"/plot_histogram.p", "r");
     fflush(gnuplot);
 }
