@@ -66,7 +66,7 @@ static gboolean simulate_cb(GtkSpinButton *spin_button, context_t* context)
     clock_t begin = clock();
     srand(time(NULL));
 
-    simulate(context);
+    modelling_simulate(context);
 
     set_points(context->bins);
 

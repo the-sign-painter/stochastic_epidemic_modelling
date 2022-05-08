@@ -16,31 +16,31 @@ typedef struct
 } markovian_frame_t;
 
 
-static uint16_t generate_random_integer(uint16_t start, uint16_t end)
+static uint16_t _modelling_generate_random_integer(uint16_t start, uint16_t end)
 {
     uint16_t rand_int = rand() % (end + 1 - start) + start;
     return rand_int;
 }
 
 
-static void generate_random_mpf(mpf_t rand_float)
+static void _modelling_generate_random_mpf(mpf_t rand_float)
 {
     uint64_t step = 10000;
-    uint16_t rand_int = generate_random_integer(0, step);
+    uint16_t rand_int = _modelling_generate_random_integer(0, step);
     mpf_set_ui(rand_float, step);
     mpf_ui_div(rand_float, 1, rand_float);
     mpf_mul_ui(rand_float, rand_float, rand_int);
 }
 
 
-static markovian_frame_t markovian_SIR_timestep(markovian_frame_t frame, mpf_t infection_rate, mpf_t recovery_rate, mpf_t avg_infected, mpf_t avg_recovered, mpf_t prob_infection, mpf_t rand_float)
+static markovian_frame_t _modelling_markovian_SIR_timestep(markovian_frame_t frame, mpf_t infection_rate, mpf_t recovery_rate, mpf_t avg_infected, mpf_t avg_recovered, mpf_t prob_infection, mpf_t rand_float)
 {
     mpf_mul_ui(avg_infected, infection_rate, frame.susceptibles);
     mpf_mul_ui(avg_recovered, recovery_rate, frame.infectives);
     mpf_add(prob_infection, avg_infected, avg_recovered);
     mpf_ui_div(prob_infection, 1, prob_infection);
     mpf_mul(prob_infection, prob_infection, avg_infected);
-    generate_random_mpf(rand_float);
+    _modelling_generate_random_mpf(rand_float);
     if (mpf_cmp(rand_float, prob_infection) < 0)
     {
         frame.susceptibles--;
@@ -55,14 +55,14 @@ static markovian_frame_t markovian_SIR_timestep(markovian_frame_t frame, mpf_t i
 }
 
 
-markovian_frame_t markovian_SIS_timestep(markovian_frame_t frame, mpf_t infection_rate, mpf_t recovery_rate, mpf_t avg_infected, mpf_t avg_recovered, mpf_t prob_infection, mpf_t rand_float)
+markovian_frame_t _modelling_markovian_SIS_timestep(markovian_frame_t frame, mpf_t infection_rate, mpf_t recovery_rate, mpf_t avg_infected, mpf_t avg_recovered, mpf_t prob_infection, mpf_t rand_float)
 {
     mpf_mul_ui(avg_infected, infection_rate, frame.susceptibles);
     mpf_mul_ui(avg_recovered, recovery_rate, frame.infectives);
     mpf_add(prob_infection, avg_infected, avg_recovered);
     mpf_ui_div(prob_infection, 1, prob_infection);
     mpf_mul(prob_infection, prob_infection, avg_infected);
-    generate_random_mpf(rand_float);
+    _modelling_generate_random_mpf(rand_float);
     if (mpf_cmp(rand_float, prob_infection) < 0)
     {
         frame.susceptibles--;
@@ -77,7 +77,7 @@ markovian_frame_t markovian_SIS_timestep(markovian_frame_t frame, mpf_t infectio
 }
 
 
-static timestep_t simulate_markovian(mpf_t infection_rate, mpf_t recovery_rate, uint8_t initial_susceptibles, uint8_t initial_infectives, mpf_t rand_float)
+static timestep_t _modelling_simulate_markovian(mpf_t infection_rate, mpf_t recovery_rate, uint8_t initial_susceptibles, uint8_t initial_infectives, mpf_t rand_float)
 {
     markovian_frame_t frame;
     frame.susceptibles = initial_susceptibles;
@@ -96,7 +96,7 @@ static timestep_t simulate_markovian(mpf_t infection_rate, mpf_t recovery_rate, 
 
     while (frame.infectives > 0)
     {
-        frame = markovian_SIR_timestep(frame, infection_rate, recovery_rate, avg_infected, avg_recovered, prob_infection, rand_float);
+        frame = _modelling_markovian_SIR_timestep(frame, infection_rate, recovery_rate, avg_infected, avg_recovered, prob_infection, rand_float);
         timestep++;
     }
 
@@ -108,7 +108,7 @@ static timestep_t simulate_markovian(mpf_t infection_rate, mpf_t recovery_rate, 
 }
 
 
-void simulate(context_t* context)
+void modelling_simulate(context_t* context)
 {
     mpf_t infection_rate;
     mpf_init(infection_rate);
@@ -126,7 +126,7 @@ void simulate(context_t* context)
 
     for (uint64_t i = 0; i < context->iterations; i++)
     {
-        timestep_t age = simulate_markovian(infection_rate, recovery_rate, context->initial_susceptibles, context->initial_infectives, rand_float);
+        timestep_t age = _modelling_simulate_markovian(infection_rate, recovery_rate, context->initial_susceptibles, context->initial_infectives, rand_float);
         if (context->bins.size > age)
         {
             context->bins.array[age] += 1;
