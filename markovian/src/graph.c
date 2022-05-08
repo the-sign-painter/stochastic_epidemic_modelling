@@ -29,6 +29,10 @@ typedef struct
 {
     graph_datapoint_t   datapoints[GRAPH_MAX_DATAPOINTS];
     uint16_t            size;
+    float               xupper;
+    float               xlower;
+    float               yupper;
+    float               ylower;
 } graph_point_array_t;
 
 
@@ -85,7 +89,7 @@ gboolean graph_draw_cb(GtkWidget *widget, cairo_t *cr, gpointer user_data)
     cairo_text_extents(cr, label, &te);
     cairo_show_text(cr, label);
 
-    for (int i = -GRAPH_XMARGIN/GRAPH_XINTERVAL_SIZE; i < (da.width / GRAPH_XINTERVAL_SIZE) -1; i++)
+    for (int i = -GRAPH_XMARGIN/GRAPH_XINTERVAL_SIZE; i < (da.width / GRAPH_XINTERVAL_SIZE) - GRAPH_XMARGIN/GRAPH_XINTERVAL_SIZE + 2; i++)
     {
         if (!i)
             continue;
@@ -105,7 +109,7 @@ gboolean graph_draw_cb(GtkWidget *widget, cairo_t *cr, gpointer user_data)
         cairo_show_text(cr, label);
     }
 
-    for (int j = -GRAPH_YMARGIN/GRAPH_YINTERVAL_SIZE; j < (da.height / GRAPH_YINTERVAL_SIZE) - 1; j++)
+    for (int j = -GRAPH_YMARGIN/GRAPH_YINTERVAL_SIZE; j < (da.height / GRAPH_YINTERVAL_SIZE) - GRAPH_YMARGIN/GRAPH_YINTERVAL_SIZE + 2; j++)
     {
         if (!j)
             continue;
@@ -145,8 +149,20 @@ gboolean graph_set_points(bin_array_t bins)
     if (bins.size > GRAPH_MAX_DATAPOINTS)
         return FALSE;
     _graph_point_array.size = bins.size;
+    _graph_point_array.xlower = INFINITY;
+    _graph_point_array.ylower = INFINITY;
+    _graph_point_array.xupper = -INFINITY;
+    _graph_point_array.yupper = -INFINITY;
     for (unsigned i = 0; i < bins.size; i++)
     {
+        if (i < _graph_point_array.xlower)
+            _graph_point_array.xlower = i;
+        if (bins.array[i] < _graph_point_array.ylower)
+            _graph_point_array.ylower = bins.array[i];
+        if (i > _graph_point_array.xupper)
+            _graph_point_array.xupper = i;
+        if (bins.array[i] > _graph_point_array.yupper)
+            _graph_point_array.yupper = bins.array[i];
         _graph_point_array.datapoints[i].x = i;
         _graph_point_array.datapoints[i].y = bins.array[i];
     }
