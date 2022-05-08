@@ -51,15 +51,14 @@ clean:
 	rm -rf $(BUILD_DIR)
 	rm -rf output
 
-valgrind:
+valgrind: $(WHOLE_EXE)
 	valgrind $(WHOLE_EXE) --leak-check=full
 
-cppcheck:
-	cppcheck --enable=all --std=c99 *.[ch]
+gdb: $(WHOLE_EXE)
+	gdb $(WHOLE_EXE)
 
-size: $(WHOLE_IMG)
-	$(SIZE) $(BUILD_DIR)/*.elf
-	$(NM) -S --size-sort $(shell find $(BUILD_DIR) -name "*.o")
+cppcheck: $(WHOLE_EXE)
+	cppcheck --enable=all --std=c99 *.[ch]
 
 
 -include $(shell find "$(BUILD_DIR)" -name "*.d")
