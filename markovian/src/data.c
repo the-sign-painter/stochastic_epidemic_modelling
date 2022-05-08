@@ -8,7 +8,7 @@
 #include "data.h"
 
 
-static void create_DATA_DIR(void)
+static void _data_create_DATA_DIR(void)
 {
     errno = 0;
     int ret = mkdir(DATA_DIR, S_IRWXU);
@@ -27,7 +27,7 @@ static void create_DATA_DIR(void)
 }
 
 
-void print_bin_array(bin_array_t bin_array)
+void data_print_bin_array(bin_array_t bin_array)
 {
     for (int i = 0; i < bin_array.size; i++)
     {
@@ -36,9 +36,9 @@ void print_bin_array(bin_array_t bin_array)
 }
 
 
-void save_data(bin_array_t bin_array, uint64_t iterations)
+void data_save_data(bin_array_t bin_array, uint64_t iterations)
 {
-    create_DATA_DIR();
+    _data_create_DATA_DIR();
     FILE* fp = fopen(DATA_DIR"/data", "w");
     if (fp == NULL)
     {
@@ -63,9 +63,9 @@ void save_data(bin_array_t bin_array, uint64_t iterations)
 }
 
 
-void make_graph_script(void)
+void data_make_graph_script(void)
 {
-    create_DATA_DIR();
+    _data_create_DATA_DIR();
     FILE *fp = fopen(DATA_DIR"/plot_graph.p", "w");
     if (fp == NULL)
     {
@@ -85,9 +85,9 @@ void make_graph_script(void)
 }
 
 
-void make_hist_script(void)
+void data_make_hist_script(void)
 {
-    create_DATA_DIR();
+    _data_create_DATA_DIR();
     FILE *fp = fopen(DATA_DIR"/plot_histogram.p", "w");
     if (fp == NULL)
     {
@@ -118,14 +118,14 @@ void make_hist_script(void)
 }
 
 
-void draw_graph(void)
+void data_draw_graph(void)
 {
     FILE *gnuplot = popen("gnuplot "DATA_DIR"/plot_graph.p", "r");
     fflush(gnuplot);
 }
 
 
-void draw_hist(void)
+void data_draw_hist(void)
 {
     FILE* gnuplot = popen("gnuplot "DATA_DIR"/plot_histogram.p", "r");
     fflush(gnuplot);

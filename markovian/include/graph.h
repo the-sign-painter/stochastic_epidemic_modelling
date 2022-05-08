@@ -4,5 +4,5 @@
 #include <gtk/gtk.h>
 
 
-gboolean draw_cb(GtkWidget *widget, cairo_t *cr, gpointer user_data);
-gboolean set_points(bin_array_t bins);
+gboolean graph_draw_cb(GtkWidget *widget, cairo_t *cr, gpointer user_data);
+gboolean graph_set_points(bin_array_t bins);

@@ -7,4 +7,4 @@
 #include "common.h"
 
 
-void simulate(context_t* context);
+void modelling_simulate(context_t* context);

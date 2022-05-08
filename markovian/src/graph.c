@@ -8,28 +8,34 @@
 #include "common.h"
 
 
-#define XMARGIN             60
-#define YMARGIN             60
-#define XINTERVAL_SIZE      30
-#define YINTERVAL_SIZE      30
-#define XLARGETICKS         5
-#define YLARGETICKS         5
-#define POINTRADIUS         3
-#define MAX_DATAPOINTS      1000
+#define GRAPH_XMARGIN             60
+#define GRAPH_YMARGIN             60
+#define GRAPH_XINTERVAL_SIZE      30
+#define GRAPH_YINTERVAL_SIZE      30
+#define GRAPH_XLARGETICKS         5
+#define GRAPH_YLARGETICKS         5
+#define GRAPH_POINTRADIUS         3
+#define GRAPH_MAX_DATAPOINTS      1000
 
 
 typedef struct
 {
     float x;
     float y;
-} datapoint_t;
+} graph_datapoint_t;
 
 
-static datapoint_t datapoints[MAX_DATAPOINTS] = {0};
-static uint16_t num_datapoints = 0;
+typedef struct
+{
+    graph_datapoint_t   datapoints[GRAPH_MAX_DATAPOINTS];
+    uint16_t            size;
+} graph_point_array_t;
 
 
-gboolean draw_cb(GtkWidget *widget, cairo_t *cr, gpointer user_data)
+static graph_point_array_t _graph_point_array = {0};
+
+
+gboolean graph_draw_cb(GtkWidget *widget, cairo_t *cr, gpointer user_data)
 {
     GdkRectangle da;            /* GtkDrawingArea size */
     gdouble dx = 1.0, dy = 1.0; /* Pixels between each point */
@@ -48,7 +54,7 @@ gboolean draw_cb(GtkWidget *widget, cairo_t *cr, gpointer user_data)
     cairo_paint (cr);
 
     /* Change the transformation matrix */
-    cairo_translate (cr, YMARGIN, da.height - XMARGIN);
+    cairo_translate (cr, GRAPH_YMARGIN, da.height - GRAPH_XMARGIN);
     cairo_scale (cr, 1., 1.);
 
     /* Determine the data points to calculate (ie. those in the clipping zone */
@@ -74,57 +80,57 @@ gboolean draw_cb(GtkWidget *widget, cairo_t *cr, gpointer user_data)
 
     cairo_font_extents(cr, &fe);
 
-    cairo_move_to(cr, -YMARGIN / 3., XMARGIN / 3.);
+    cairo_move_to(cr, -GRAPH_YMARGIN / 3., GRAPH_XMARGIN / 3.);
     char label[] = "0";
     cairo_text_extents(cr, label, &te);
     cairo_show_text(cr, label);
 
-    for (int i = -XMARGIN/XINTERVAL_SIZE; i < (da.width / XINTERVAL_SIZE) -1; i++)
+    for (int i = -GRAPH_XMARGIN/GRAPH_XINTERVAL_SIZE; i < (da.width / GRAPH_XINTERVAL_SIZE) -1; i++)
     {
         if (!i)
             continue;
-        cairo_move_to(cr, i * XINTERVAL_SIZE , 0);
-        float ticklen = XMARGIN/4.5;
-        if (i % XLARGETICKS == 0)
+        cairo_move_to(cr, i * GRAPH_XINTERVAL_SIZE , 0);
+        float ticklen = GRAPH_XMARGIN/4.5;
+        if (i % GRAPH_XLARGETICKS == 0)
             ticklen *= 1.5;
-        cairo_line_to(cr, i * XINTERVAL_SIZE , ticklen);
+        cairo_line_to(cr, i * GRAPH_XINTERVAL_SIZE , ticklen);
         if (i < 0)
             continue;
         char label[10];
         snprintf(label, 10, "%d", i);
         cairo_text_extents(cr, label, &te);
         cairo_move_to(cr,
-                      i * XINTERVAL_SIZE - te.x_bearing - te.width / 2,
-                      XMARGIN/1.5        - fe.descent  + fe.height / 2);
+                      i * GRAPH_XINTERVAL_SIZE - te.x_bearing - te.width / 2,
+                      GRAPH_XMARGIN/1.5        - fe.descent  + fe.height / 2);
         cairo_show_text(cr, label);
     }
 
-    for (int j = -YMARGIN/YINTERVAL_SIZE; j < (da.height / YINTERVAL_SIZE) - 1; j++)
+    for (int j = -GRAPH_YMARGIN/GRAPH_YINTERVAL_SIZE; j < (da.height / GRAPH_YINTERVAL_SIZE) - 1; j++)
     {
         if (!j)
             continue;
-        cairo_move_to(cr, 0,            -j * YINTERVAL_SIZE);
-        float ticklen = YMARGIN/4.5;
-        if (j % YLARGETICKS == 0)
+        cairo_move_to(cr, 0,            -j * GRAPH_YINTERVAL_SIZE);
+        float ticklen = GRAPH_YMARGIN/4.5;
+        if (j % GRAPH_YLARGETICKS == 0)
             ticklen *= 1.5;
-        cairo_line_to(cr, -ticklen,     -j * YINTERVAL_SIZE);
+        cairo_line_to(cr, -ticklen,     -j * GRAPH_YINTERVAL_SIZE);
         if (j < 0)
             continue;
         char label[10];
         snprintf(label, 10, "%d", j);
         cairo_text_extents(cr, label, &te);
         cairo_move_to(cr,
-                      -YMARGIN/1.5        - te.x_bearing - te.width / 2,
-                      -j * YINTERVAL_SIZE - fe.descent  + fe.height / 2);
+                      -GRAPH_YMARGIN/1.5        - te.x_bearing - te.width / 2,
+                      -j * GRAPH_YINTERVAL_SIZE - fe.descent  + fe.height / 2);
         cairo_show_text(cr, label);
     }
     cairo_stroke (cr);
 
-    for (unsigned k = 0; k < num_datapoints; k++)
+    for (unsigned k = 0; k < _graph_point_array.size; k++)
     {
-        datapoint_t* d = &datapoints[k];
-        cairo_move_to(cr, XINTERVAL_SIZE*d->x, -YINTERVAL_SIZE*d->y);
-        cairo_arc(cr, XINTERVAL_SIZE*d->x, -YINTERVAL_SIZE*d->y, POINTRADIUS, 0, 2 * M_PI);
+        graph_datapoint_t* d = &_graph_point_array.datapoints[k];
+        cairo_move_to(cr, GRAPH_XINTERVAL_SIZE*d->x, -GRAPH_YINTERVAL_SIZE*d->y);
+        cairo_arc(cr, GRAPH_XINTERVAL_SIZE*d->x, -GRAPH_YINTERVAL_SIZE*d->y, GRAPH_POINTRADIUS, 0, 2 * M_PI);
         cairo_fill (cr);
     }
 
@@ -134,15 +140,15 @@ gboolean draw_cb(GtkWidget *widget, cairo_t *cr, gpointer user_data)
 }
 
 
-gboolean set_points(bin_array_t bins)
+gboolean graph_set_points(bin_array_t bins)
 {
-    if (bins.size > MAX_DATAPOINTS)
+    if (bins.size > GRAPH_MAX_DATAPOINTS)
         return FALSE;
-    num_datapoints = bins.size;
+    _graph_point_array.size = bins.size;
     for (unsigned i = 0; i < bins.size; i++)
     {
-        datapoints[i].x = i;
-        datapoints[i].y = bins.array[i];
+        _graph_point_array.datapoints[i].x = i;
+        _graph_point_array.datapoints[i].y = bins.array[i];
     }
     return TRUE;
 }
