@@ -19,14 +19,13 @@ typedef enum
 } simulation_enum_t;
 
 
+#define SIMULATIONS_COUNT                                           2
+#define MAX_SIM_NAME_LEN                                            16
 #define SIMULATIONS                                                    \
 {                                                                      \
     { SIMULATION_MARKOVIAN_SIR, "Markovian SIR", modelling_simulate }, \
     { SIMULATION_MARKOVIAN_SIS, "Markovian SIS", modelling_simulate }, \
 }
-
-#define SIMULATIONS_COUNT                                           2
-#define MAX_SIM_NAME_LEN                                            16
 
 
 typedef struct
