@@ -24,7 +24,7 @@ typedef struct
     uint64_t iterations;
     double infection_rate;
     double recovery_rate;
-    uint16_t initial_susceptibles;
-    uint16_t initial_infectives;
-    uint16_t initial_removed;
+    uint32_t initial_susceptibles;
+    uint32_t initial_infectives;
+    uint32_t initial_removed;
 } context_t;
