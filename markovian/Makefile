@@ -8,7 +8,7 @@ GIT_COMMITS := $(shell git rev-list --count HEAD)
 GIT_COMMIT := $(shell git log -n 1 --format="%h-%f")
 
 #Compiler options
-CFLAGS		= -Os -g -c -std=gnu11 `pkg-config --cflags --libs gtk+-3.0`
+CFLAGS		= -Og -g -c -std=gnu11 `pkg-config --cflags --libs gtk+-3.0`
 CFLAGS		+= -Wall -Wextra -Werror -fms-extensions -Wno-unused-parameter -Wno-address-of-packed-member
 CFLAGS		+= -pedantic
 CFLAGS		+= -DGIT_VERSION=\"[$(GIT_COMMITS)]-$(GIT_COMMIT)\" -DGIT_SHA1=\"$(GIT_SHA1)\"
