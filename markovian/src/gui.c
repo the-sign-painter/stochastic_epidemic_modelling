@@ -45,6 +45,7 @@ typedef struct
 
 
 static simulation_struct_t  simulations[] = SIMULATIONS;
+static gui_context_t gui_context = {0};
 
 
 static gboolean _gui_simulation_selection_cb(GtkComboBox* combo_box, gui_context_t* gui_context)
@@ -149,7 +150,6 @@ static void _gui_populate_sim_combo_box(GObject* combo_box)
 
 void gui_init(context_t* context, int* argc, char*** argv)
 {
-    gui_context_t gui_context = {0};
     gui_context.context = context;
 
     GtkWidget*  window;
