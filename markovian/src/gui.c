@@ -36,80 +36,88 @@ typedef struct
 } simulation_struct_t;
 
 
-static simulation_struct_t  simulations[]       = SIMULATIONS;
-static simulation_enum_t    active_sim_index    = 0;
-
-
-static gboolean _gui_simulation_selection_cb(GtkComboBox* combo_box, context_t* context)
+typedef struct
 {
-    int sim_index = gtk_combo_box_get_active(combo_box);
+    context_t*          context;
+    GObject*            sim_combo_box;
+    GObject*            graph_container;
+} gui_context_t;
+
+
+static simulation_struct_t  simulations[] = SIMULATIONS;
+static gui_context_t gui_context = {0};
+
+
+static gboolean _gui_simulation_selection_cb(GtkComboBox* combo_box, gui_context_t* gui_context)
+{
+    /* Maybe do something? */
+    return TRUE;
+}
+
+
+static gboolean _gui_initial_susceptibles_cb(GtkSpinButton *spin_button, gui_context_t* gui_context)
+{
+    gui_context->context->initial_susceptibles = gtk_spin_button_get_value_as_int(spin_button);
+    return TRUE;
+}
+
+
+static gboolean _gui_initial_infectives_cb(GtkSpinButton *spin_button, gui_context_t* gui_context)
+{
+    gui_context->context->initial_infectives = gtk_spin_button_get_value_as_int(spin_button);
+    return TRUE;
+}
+
+
+static gboolean _gui_initial_removed_cb(GtkSpinButton *spin_button, gui_context_t* gui_context)
+{
+    gui_context->context->initial_removed = gtk_spin_button_get_value_as_int(spin_button);
+    return TRUE;
+}
+
+
+static gboolean _gui_infection_rate_cb(GtkSpinButton *spin_button, gui_context_t* gui_context)
+{
+    gui_context->context->infection_rate = gtk_spin_button_get_value(spin_button);
+    return TRUE;
+}
+
+
+static gboolean _gui_recovery_rate_cb(GtkSpinButton *spin_button, gui_context_t* gui_context)
+{
+    gui_context->context->recovery_rate = gtk_spin_button_get_value(spin_button);
+    return TRUE;
+}
+
+
+static gboolean _gui_time_range_cb(GtkSpinButton *spin_button, gui_context_t* gui_context)
+{
+    gui_context->context->bins.size = gtk_spin_button_get_value_as_int(spin_button);
+    return TRUE;
+}
+
+
+static gboolean _gui_num_iterations_cb(GtkSpinButton *spin_button, gui_context_t* gui_context)
+{
+    gui_context->context->iterations = gtk_spin_button_get_value_as_int(spin_button);
+    return TRUE;
+}
+
+
+static gboolean _gui_simulate_cb(GtkButton *button, gui_context_t* gui_context)
+{
+    int sim_index = gtk_combo_box_get_active(GTK_COMBO_BOX(gui_context->sim_combo_box));
     if (sim_index >= SIMULATIONS_COUNT)
         return FALSE;
-    active_sim_index = sim_index;
-    return TRUE;
-}
-
-
-static gboolean _gui_initial_susceptibles_cb(GtkSpinButton *spin_button, context_t* context)
-{
-    context->initial_susceptibles = gtk_spin_button_get_value_as_int(spin_button);
-    return TRUE;
-}
-
-
-static gboolean _gui_initial_infectives_cb(GtkSpinButton *spin_button, context_t* context)
-{
-    context->initial_infectives = gtk_spin_button_get_value_as_int(spin_button);
-    return TRUE;
-}
-
-
-static gboolean _gui_initial_removed_cb(GtkSpinButton *spin_button, context_t* context)
-{
-    context->initial_removed = gtk_spin_button_get_value_as_int(spin_button);
-    return TRUE;
-}
-
-
-static gboolean _gui_infection_rate_cb(GtkSpinButton *spin_button, context_t* context)
-{
-    context->infection_rate = gtk_spin_button_get_value(spin_button);
-    return TRUE;
-}
-
-
-static gboolean _gui_recovery_rate_cb(GtkSpinButton *spin_button, context_t* context)
-{
-    context->recovery_rate = gtk_spin_button_get_value(spin_button);
-    return TRUE;
-}
-
-
-static gboolean _gui_time_range_cb(GtkSpinButton *spin_button, context_t* context)
-{
-    context->bins.size = gtk_spin_button_get_value_as_int(spin_button);
-    return TRUE;
-}
-
-
-static gboolean _gui_num_iterations_cb(GtkSpinButton *spin_button, context_t* context)
-{
-    context->iterations = gtk_spin_button_get_value_as_int(spin_button);
-    return TRUE;
-}
-
-
-static gboolean _gui_simulate_cb(GtkButton *button, context_t* context)
-{
     clock_t begin = clock();
     srand(time(NULL));
 
-    simulations[active_sim_index].cb(context);
+    simulations[sim_index].cb(gui_context->context);
 
-    graph_set_points(context->bins);
+    graph_set_points(gui_context->context->bins);
 
     //print_bin_array(bin_array);
-    data_save_data(context->bins, context->iterations);
+    data_save_data(gui_context->context->bins, gui_context->context->iterations);
     data_make_graph_script();
     data_draw_graph();
     data_make_hist_script();
@@ -119,7 +127,7 @@ static gboolean _gui_simulate_cb(GtkButton *button, context_t* context)
     double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
     printf("Time spent: %f seconds\n", time_spent);
 
-    gtk_image_new_from_file(DATA_DIR"/graph.png");
+    //gtk_widget_queue_draw_area(GTK_WIDGET(gui_context->graph_container), 0, 0, 10, 10);
     return TRUE;
 }
 
@@ -142,6 +150,8 @@ static void _gui_populate_sim_combo_box(GObject* combo_box)
 
 void gui_init(context_t* context, int* argc, char*** argv)
 {
+    gui_context.context = context;
+
     GtkWidget*  window;
     GtkBuilder* builder = NULL;
 
@@ -159,36 +169,36 @@ void gui_init(context_t* context, int* argc, char*** argv)
 
     gtk_builder_connect_signals(builder,NULL);
 
-    GObject* simulation_selection_box = gtk_builder_get_object(builder, "simulation_selection_box");
-    _gui_populate_sim_combo_box(simulation_selection_box);
-    g_signal_connect(simulation_selection_box, "changed", G_CALLBACK(_gui_simulation_selection_cb), context);
+    gui_context.sim_combo_box = gtk_builder_get_object(builder, "simulation_selection_box");
+    _gui_populate_sim_combo_box(gui_context.sim_combo_box);
+    g_signal_connect(gui_context.sim_combo_box, "changed", G_CALLBACK(_gui_simulation_selection_cb), gui_context.context);
 
     GObject* initial_susceptibles_spin_btn = gtk_builder_get_object(builder, "initial_susceptibles_spin_btn");
-    g_signal_connect(initial_susceptibles_spin_btn, "changed", G_CALLBACK(_gui_initial_susceptibles_cb), context);
+    g_signal_connect(initial_susceptibles_spin_btn, "changed", G_CALLBACK(_gui_initial_susceptibles_cb), gui_context.context);
 
     GObject* initial_infectives_spin_btn = gtk_builder_get_object(builder, "initial_infectives_spin_btn");
-    g_signal_connect(initial_infectives_spin_btn, "changed", G_CALLBACK(_gui_initial_infectives_cb), context);
+    g_signal_connect(initial_infectives_spin_btn, "changed", G_CALLBACK(_gui_initial_infectives_cb), gui_context.context);
 
     GObject* initial_removed_spin_btn = gtk_builder_get_object(builder, "initial_removed_spin_btn");
-    g_signal_connect(initial_removed_spin_btn, "changed", G_CALLBACK(_gui_initial_removed_cb), context);
+    g_signal_connect(initial_removed_spin_btn, "changed", G_CALLBACK(_gui_initial_removed_cb), gui_context.context);
 
     GObject* infection_rate_spin_btn = gtk_builder_get_object(builder, "infection_rate_spin_btn");
-    g_signal_connect(infection_rate_spin_btn, "changed", G_CALLBACK(_gui_infection_rate_cb), context);
+    g_signal_connect(infection_rate_spin_btn, "changed", G_CALLBACK(_gui_infection_rate_cb), gui_context.context);
 
     GObject* recovery_rate_spin_btn = gtk_builder_get_object(builder, "recovery_rate_spin_btn");
-    g_signal_connect(recovery_rate_spin_btn, "changed", G_CALLBACK(_gui_recovery_rate_cb), context);
+    g_signal_connect(recovery_rate_spin_btn, "changed", G_CALLBACK(_gui_recovery_rate_cb), gui_context.context);
 
     GObject* time_range_spin_btn = gtk_builder_get_object(builder, "time_range_spin_btn");
-    g_signal_connect(time_range_spin_btn, "changed", G_CALLBACK(_gui_time_range_cb), context);
+    g_signal_connect(time_range_spin_btn, "changed", G_CALLBACK(_gui_time_range_cb), gui_context.context);
 
     GObject* num_iterations_spin_btn = gtk_builder_get_object(builder, "num_iterations_spin_btn");
-    g_signal_connect(num_iterations_spin_btn, "changed", G_CALLBACK(_gui_num_iterations_cb), context);
+    g_signal_connect(num_iterations_spin_btn, "changed", G_CALLBACK(_gui_num_iterations_cb), gui_context.context);
 
     GObject* simulate_btn = gtk_builder_get_object(builder, "simulate_btn");
-    g_signal_connect(simulate_btn, "pressed", G_CALLBACK(_gui_simulate_cb), context);
+    g_signal_connect(simulate_btn, "pressed", G_CALLBACK(_gui_simulate_cb), gui_context.context);
 
-    GObject* graph_container = gtk_builder_get_object(builder, "graph_container");
-    g_signal_connect(graph_container, "draw", G_CALLBACK (graph_draw_cb), NULL);
+    gui_context.graph_container = gtk_builder_get_object(builder, "graph_container");
+    g_signal_connect(gui_context.graph_container, "draw", G_CALLBACK (graph_draw_cb), NULL);
 
     gtk_widget_show_all(window);
     gtk_main();
